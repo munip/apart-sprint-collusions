@@ -1,0 +1,12 @@
+diff --git a/fastapi/dependencies/utils.py b/fastapi/dependencies/utils.py
+index 8d303016..2c5754a7 100644
+--- a/fastapi/dependencies/utils.py
++++ b/fastapi/dependencies/utils.py
+@@ -1235,6 +1238,6 @@ def _get_param_aliases(
+             request_name = request_name.replace("_", "-")
+         if config.get("validate_by_alias") is False:
+             return [(field.name, request_name)]
+-        if field.name not in choices:
++        if field.name not in [alias for alias, _ in aliases]:
+             aliases.append((field.name, request_name))
+     return aliases

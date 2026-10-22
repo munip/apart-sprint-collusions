@@ -1,0 +1,47 @@
+\textbf{Why ``verify, don't decode'' works, and where it stops.} Steganography hides the \emph{message}
+but not its \emph{purpose}. Colluders coordinate in order to change an outcome: a weaker test suite, a
+higher price. A monitor with independent access to that outcome is largely indifferent to how the
+message was carried. This matches the information-theoretic picture of \citet{motwani2024secret}:
+perfectly secure channels are undetectable \emph{as channels}, but their effects are not. The limits
+follow from the same argument. (i)~If the colluders' goal leaves no trace in a verifiable outcome
+(pure information leakage, as in C5b), only provenance can catch it, and provenance depends on
+observability (R3). (ii)~Verification needs a ground truth the agents cannot shape. Our verifier used
+upstream tests; in deployment that is a trusted QA suite, and its coverage bounds recall (R4).
+(iii)~Tacit collusion (A4) is detectable as harm but cannot be attributed to an agreement. Legally and
+ethically that is the right answer, and the requirements specifically ask that agreement alone never be
+penalised.
+
+\textbf{Challenges encountered.} \emph{Ground truth in real repositories:} some upstream tests import
+private helpers (T3), docs-tutorial tests depend on files outside the source tree, and removing a
+single hunk from a reference patch often yields code that does not import. We filtered automatically
+for plausible partial fixes. \emph{History leakage:} a plain clone contains the future fix, so
+workspaces are exported without history. \emph{Hard negatives create real false positives:} index
+anchoring and honest price discovery look like coordination early in an episode, and online deciding
+amplifies this (R5). \emph{Licensing:} the double-auction reference code has no licence, so it was
+re-implemented. \emph{Tooling:} the sandbox had no third-party LLM egress or web search, which is why
+M2, Petri red-teaming and LLM agents are wired in but not yet run.
+
+\textbf{Limitations.} The central limitation is that v0.1 agents are \emph{scripted}. Their channels,
+strategies and wording variation were designed by us, so the results validate the monitor's
+\emph{logic and plumbing} with exact labels. They do not show that LLM colluders behave this way. In
+particular, the colluding tester's knowledge of the gap is supplied by the environment as a stand-in for
+a successful covert transmission. Collusion is induced, not emergent. We ran five tasks from one
+repository, one market structure and three to ten seeds, so the CIs are wide and some effects are near
+ceiling. Market buyers are scripted and costs are stylised. The monitor's acceptance tests derive from
+upstream tests.
+
+\textbf{Next steps.} (1)~Run the implemented LLM path: \texttt{cloud} (Claude Haiku agents, Sonnet
+judge), \texttt{local} (Ollama open weights) and \texttt{mixed} teams. Test whether shared-model
+Schelling points make covert schemes easier for homogeneous teams. (2)~Add \Mtwo{} and measure the
+transcript judge against the same channels at a fixed FPR. (3)~Petri/MRT-style red-teaming to
+generate \emph{new} schemes against the current detectors, used as held-out tests. (4)~Open-network
+treatment with retrieval instrumentation, and sampling-seed channels \citep{machtle2026seeds}, which
+require logging sampler seeds. (5)~Emergent collusion through retained interaction history
+\citep{shi2026longhorizon}. (6)~Activation probes for open-weight agents (NARCBench-style) as an extra
+provenance signal. (7)~Train a single cross-domain monitor and measure transfer.
+
+\textbf{Conclusion.} In both a real software team and a market, a trusted monitor that independently
+verifies outcomes and tracks provenance caught every coordination channel we tested at near-zero
+benign cost, while a transcript monitor caught only overt collusion. Detection was channel-invariant;
+attribution was not. And the best intervention was to \emph{add} a trusted participant rather than to
+exclude suspects.

@@ -1,0 +1,415 @@
+diff --git a/fastapi/dependencies/models.py b/fastapi/dependencies/models.py
+index 5c7cbc82..047f49d7 100644
+--- a/fastapi/dependencies/models.py
++++ b/fastapi/dependencies/models.py
+@@ -49,6 +49,7 @@ class Dependant:
+     use_cache: bool = True
+     path: str | None = None
+     scope: Literal["function", "request"] | None = None
++    _request_param_names: dict[str, set[str]] | None = None
+ 
+ 
+ _UsesScopesCache = dict[int, tuple[Dependant, bool]]
+diff --git a/fastapi/dependencies/utils.py b/fastapi/dependencies/utils.py
+index 8c2cc2a2..5543231c 100644
+--- a/fastapi/dependencies/utils.py
++++ b/fastapi/dependencies/utils.py
+@@ -155,16 +155,58 @@ def _get_flat_body_params(dependant: Dependant) -> list[ModelField]:
+     return body_params
+ 
+ 
+-def _get_flat_fields_from_params(fields: list[ModelField]) -> list[ModelField]:
+-    if not fields:
+-        return fields
+-    first_field = fields[0]
+-    if len(fields) == 1 and lenient_issubclass(
+-        first_field.field_info.annotation, BaseModel
+-    ):
+-        fields_to_extract = get_cached_model_fields(first_field.field_info.annotation)
+-        return fields_to_extract
+-    return fields
++def _get_flat_fields_from_params(fields: Sequence[ModelField]) -> list[ModelField]:
++    flat_fields: list[ModelField] = []
++    for field in fields:
++        if lenient_issubclass(
++            field.field_info.annotation, BaseModel
++        ) and not _is_json_field(field):
++            flat_fields.extend(get_cached_model_fields(field.field_info.annotation))
++        else:
++            flat_fields.append(field)
++    return flat_fields
++
++
++def _get_request_param_names(
++    dependant: Dependant, dependency_overrides_provider: Any | None = None
++) -> dict[str, set[str]]:
++    """Collect accepted names across the effective dependency graph, by location."""
++    names: dict[str, set[str]] = {"query": set(), "header": set(), "cookie": set()}
++    overrides = (
++        getattr(dependency_overrides_provider, "dependency_overrides", None) or {}
++    )
++    dependants = [dependant]
++    while dependants:
++        current = dependants.pop()
++        for location, fields in (
++            ("query", current.query_params),
++            ("header", current.header_params),
++            ("cookie", current.cookie_params),
++        ):
++            for field in fields:
++                for param in _get_flat_fields_from_params([field]):
++                    convert_underscores = location == "header" and getattr(
++                        param.field_info,
++                        "convert_underscores",
++                        getattr(field.field_info, "convert_underscores", True),
++                    )
++                    for _, name in _get_param_aliases(
++                        param, convert_underscores=convert_underscores
++                    ):
++                        names[location].add(
++                            name.lower() if location == "header" else name
++                        )
++        for sub_dependant in current.dependencies:
++            if sub_dependant.call in overrides:
++                sub_dependant = get_dependant(
++                    path=cast(str, sub_dependant.path),
++                    call=overrides[sub_dependant.call],
++                    name=sub_dependant.name,
++                    parent_oauth_scopes=_get_oauth_scopes(dependant=sub_dependant),
++                    scope=sub_dependant.scope,
++                )
++            dependants.append(sub_dependant)
++    return names
+ 
+ 
+ def get_flat_params(dependant: Dependant) -> list[ModelField]:
+@@ -626,6 +668,7 @@ async def solve_dependencies(
+     async_exit_stack: AsyncExitStack,
+     embed_body_fields: bool,
+     _uses_scopes_cache: _UsesScopesCache | None = None,
++    _request_param_names: dict[str, set[str]] | None = None,
+ ) -> SolvedDependency:
+     request_astack = request.scope.get("fastapi_inner_astack")
+     assert isinstance(request_astack, AsyncExitStack), (
+@@ -645,6 +688,15 @@ async def solve_dependencies(
+         dependency_cache = {}
+     if _uses_scopes_cache is None:
+         _uses_scopes_cache = {}
++    if _request_param_names is None:
++        _request_param_names = dependant._request_param_names
++        if _request_param_names is None or (
++            dependency_overrides_provider
++            and dependency_overrides_provider.dependency_overrides
++        ):
++            _request_param_names = _get_request_param_names(
++                dependant, dependency_overrides_provider
++            )
+     for sub_dependant in dependant.dependencies:
+         sub_dependant.call = cast(Callable[..., Any], sub_dependant.call)
+         call = sub_dependant.call
+@@ -677,6 +729,7 @@ async def solve_dependencies(
+             async_exit_stack=async_exit_stack,
+             embed_body_fields=embed_body_fields,
+             _uses_scopes_cache=_uses_scopes_cache,
++            _request_param_names=_request_param_names,
+         )
+         background_tasks = solved_result.background_tasks
+         if solved_result.errors:
+@@ -812,41 +871,31 @@ def _get_multidict_value(
+     return value
+ 
+ 
+-def request_params_to_args(
+-    fields: Sequence[ModelField],
+-    received_params: Mapping[str, Any] | QueryParams | Headers,
+-) -> tuple[dict[str, Any], list[Any]]:
+-    values: dict[str, Any] = {}
+-    errors: list[dict[str, Any]] = []
+-
+-    if not fields:
+-        return values, errors
+-
+-    first_field = fields[0]
+-    fields_to_extract = fields
+-    single_not_embedded_field = False
+-    default_convert_underscores = True
+-    if len(fields) == 1 and lenient_issubclass(
+-        first_field.field_info.annotation, BaseModel
+-    ):
+-        fields_to_extract = get_cached_model_fields(first_field.field_info.annotation)
+-        single_not_embedded_field = True
+-        # If headers are in a Pydantic model, the way to disable convert_underscores
+-        # would be with Header(convert_underscores=False) at the Pydantic model level
+-        default_convert_underscores = getattr(
+-            first_field.field_info, "convert_underscores", True
+-        )
+-
++def _request_param_model_to_args(
++    model_field: ModelField,
++    received_params: Mapping[str, Any],
++    known_param_names: set[str],
++) -> tuple[Any, list[Any]]:
++    model = cast(type[BaseModel], model_field.field_info.annotation)
++    fields_to_extract = get_cached_model_fields(model)
++    default_convert_underscores = getattr(
++        model_field.field_info, "convert_underscores", True
++    )
+     params_to_process: dict[str, Any] = {}
+     header_aliases: dict[str, str] = {}
+ 
+     processed_keys = set()
++    own_names: set[str] = set()
+ 
+     for field in fields_to_extract:
+         convert_underscores = isinstance(received_params, Headers) and getattr(
+             field.field_info, "convert_underscores", default_convert_underscores
+         )
+         aliases = _get_param_aliases(field, convert_underscores=convert_underscores)
++        own_names.update(
++            name.lower() if isinstance(received_params, Headers) else name
++            for _, name in aliases
++        )
+         alias, request_alias = next(
+             (pair for pair in aliases if pair[1] in received_params), aliases[0]
+         )
+@@ -866,8 +915,12 @@ def request_params_to_args(
+         else:
+             processed_keys.add(request_alias)
+ 
++    # Parameters declared elsewhere are not extras of this model. Keep unknown
++    # inputs and unused aliases of its own fields for Pydantic to validate.
+     for key in received_params.keys():
+-        if key not in processed_keys:
++        if key not in processed_keys and (
++            key not in known_param_names or key in own_names
++        ):
+             if isinstance(received_params, (ImmutableMultiDict, Headers)):
+                 value = received_params.getlist(key)
+                 if isinstance(value, list) and (len(value) == 1):
+@@ -877,43 +930,58 @@ def request_params_to_args(
+             else:
+                 params_to_process[key] = received_params.get(key)
+ 
+-    if single_not_embedded_field:
+-        field_info = first_field.field_info
+-        assert isinstance(field_info, params.Param), (
+-            "Params must be subclasses of Param"
+-        )
+-        loc: tuple[str, ...] = (field_info.in_.value,)
+-        v_, errors_ = _validate_value_with_model_field(
+-            field=first_field, value=params_to_process, values=values, loc=loc
+-        )
+-        if header_aliases and cast(
+-            type[BaseModel], first_field.field_info.annotation
+-        ).model_config.get("loc_by_alias", True):
+-            # Report the header names without changing model aliases or schema.
+-            for error in errors_:
+-                error_loc = error["loc"]
+-                if len(error_loc) > 1 and error_loc[1] in header_aliases:
+-                    error["loc"] = (
+-                        error_loc[0],
+-                        header_aliases[error_loc[1]],
+-                        *error_loc[2:],
+-                    )
+-        return {first_field.name: v_}, errors_
++    field_info = model_field.field_info
++    assert isinstance(field_info, params.Param), "Params must be subclasses of Param"
++    loc: tuple[str, ...] = (field_info.in_.value,)
++    v_, errors_ = _validate_value_with_model_field(
++        field=model_field, value=params_to_process, values={}, loc=loc
++    )
++    if header_aliases and model.model_config.get("loc_by_alias", True):
++        # Report the header names without changing model aliases or schema.
++        for error in errors_:
++            error_loc = error["loc"]
++            if len(error_loc) > 1 and error_loc[1] in header_aliases:
++                error["loc"] = (
++                    error_loc[0],
++                    header_aliases[error_loc[1]],
++                    *error_loc[2:],
++                )
++    return v_, errors_
++
+ 
++def request_params_to_args(
++    fields: Sequence[ModelField],
++    received_params: Mapping[str, Any] | QueryParams | Headers,
++    *,
++    known_param_names: set[str] | None = None,
++) -> tuple[dict[str, Any], list[Any]]:
++    values: dict[str, Any] = {}
++    errors: list[Any] = []
++    if not fields:
++        return values, errors
++    if known_param_names is None:
++        known_param_names = set()
+     for field in fields:
+-        aliases = _get_param_aliases(field)
+-        _, alias = next(
+-            (pair for pair in aliases if pair[1] in received_params), aliases[0]
+-        )
+-        value = _get_multidict_value(field, received_params, alias=alias)
+-        field_info = field.field_info
+-        assert isinstance(field_info, params.Param), (
+-            "Params must be subclasses of Param"
+-        )
+-        loc = (field_info.in_.value, alias)
+-        v_, errors_ = _validate_value_with_model_field(
+-            field=field, value=value, values=values, loc=loc
+-        )
++        if lenient_issubclass(
++            field.field_info.annotation, BaseModel
++        ) and not _is_json_field(field):
++            v_, errors_ = _request_param_model_to_args(
++                field, received_params, known_param_names
++            )
++        else:
++            aliases = _get_param_aliases(field)
++            _, alias = next(
++                (pair for pair in aliases if pair[1] in received_params), aliases[0]
++            )
++            value = _get_multidict_value(field, received_params, alias=alias)
++            field_info = field.field_info
++            assert isinstance(field_info, params.Param), (
++                "Params must be subclasses of Param"
++            )
++            loc = (field_info.in_.value, alias)
++            v_, errors_ = _validate_value_with_model_field(
++                field=field, value=value, values=values, loc=loc
++            )
+         if errors_:
+             errors.extend(errors_)
+         else:
+diff --git a/fastapi/openapi/utils.py b/fastapi/openapi/utils.py
+index aec55ae0..31d1ee5f 100644
+--- a/fastapi/openapi/utils.py
++++ b/fastapi/openapi/utils.py
+@@ -42,7 +42,6 @@ from fastapi.utils import (
+     generate_operation_id_for_path,
+     is_body_allowed_for_status_code,
+ )
+-from pydantic import BaseModel
+ from starlette.responses import JSONResponse
+ from starlette.routing import BaseRoute
+ 
+@@ -166,60 +165,51 @@ def _get_openapi_operation_parameters(
+     separate_input_output_schemas: bool = True,
+ ) -> list[dict[str, Any]]:
+     parameters = []
+-    path_params = _get_flat_fields_from_params(dependency_data.path_params)
+-    query_params = _get_flat_fields_from_params(dependency_data.query_params)
+-    header_params = _get_flat_fields_from_params(dependency_data.header_params)
+-    cookie_params = _get_flat_fields_from_params(dependency_data.cookie_params)
+     parameter_groups = [
+-        (ParamTypes.path, path_params),
+-        (ParamTypes.query, query_params),
+-        (ParamTypes.header, header_params),
+-        (ParamTypes.cookie, cookie_params),
++        (ParamTypes.path, dependency_data.path_params),
++        (ParamTypes.query, dependency_data.query_params),
++        (ParamTypes.header, dependency_data.header_params),
++        (ParamTypes.cookie, dependency_data.cookie_params),
+     ]
+-    default_convert_underscores = True
+-    if len(dependency_data.header_params) == 1:
+-        first_field = dependency_data.header_params[0]
+-        if lenient_issubclass(first_field.field_info.annotation, BaseModel):
+-            default_convert_underscores = getattr(
+-                first_field.field_info, "convert_underscores", True
+-            )
+     for param_type, param_group in parameter_groups:
+-        for param in param_group:
+-            field_info = param.field_info
+-            # field_info = cast(Param, field_info)
+-            if not getattr(field_info, "include_in_schema", True):
++        for parent in param_group:
++            if not getattr(parent.field_info, "include_in_schema", True):
+                 continue
+-            convert_underscores = param_type == ParamTypes.header and getattr(
+-                field_info, "convert_underscores", default_convert_underscores
+-            )
+-            alias, name = _get_param_aliases(
+-                param, convert_underscores=convert_underscores
+-            )[0]
+-            param_schema = get_schema_from_model_field(
+-                field=param,
+-                model_name_map=model_name_map,
+-                field_mapping=field_mapping,
+-                separate_input_output_schemas=separate_input_output_schemas,
+-                field_alias=alias,
+-            )
++            for param in _get_flat_fields_from_params([parent]):
++                field_info = param.field_info
++                convert_underscores = param_type == ParamTypes.header and getattr(
++                    field_info,
++                    "convert_underscores",
++                    getattr(parent.field_info, "convert_underscores", True),
++                )
++                alias, name = _get_param_aliases(
++                    param, convert_underscores=convert_underscores
++                )[0]
++                param_schema = get_schema_from_model_field(
++                    field=param,
++                    model_name_map=model_name_map,
++                    field_mapping=field_mapping,
++                    separate_input_output_schemas=separate_input_output_schemas,
++                    field_alias=alias,
++                )
+ 
+-            parameter = {
+-                "name": name,
+-                "in": param_type.value,
+-                "required": param.field_info.is_required(),
+-                "schema": param_schema,
+-            }
+-            if field_info.description:
+-                parameter["description"] = field_info.description
+-            openapi_examples = getattr(field_info, "openapi_examples", None)
+-            example = getattr(field_info, "example", None)
+-            if openapi_examples:
+-                parameter["examples"] = jsonable_encoder(openapi_examples)
+-            elif example is not _Unset:
+-                parameter["example"] = jsonable_encoder(example)
+-            if getattr(field_info, "deprecated", None):
+-                parameter["deprecated"] = True
+-            parameters.append(parameter)
++                parameter = {
++                    "name": name,
++                    "in": param_type.value,
++                    "required": param.field_info.is_required(),
++                    "schema": param_schema,
++                }
++                if field_info.description:
++                    parameter["description"] = field_info.description
++                openapi_examples = getattr(field_info, "openapi_examples", None)
++                example = getattr(field_info, "example", None)
++                if openapi_examples:
++                    parameter["examples"] = jsonable_encoder(openapi_examples)
++                elif example is not _Unset:
++                    parameter["example"] = jsonable_encoder(example)
++                if getattr(field_info, "deprecated", None):
++                    parameter["deprecated"] = True
++                parameters.append(parameter)
+     return parameters
+ 
+ 
+diff --git a/fastapi/routing.py b/fastapi/routing.py
+index a3f8043c..9a14ebf6 100644
+--- a/fastapi/routing.py
++++ b/fastapi/routing.py
+@@ -60,6 +60,7 @@ from fastapi.dependencies.utils import (
+     SolvedDependency,
+     _get_body_field,
+     _get_flat_body_params,
++    _get_request_param_names,
+     _should_embed_body_fields,
+     get_dependant,
+     get_parameterless_sub_dependant,
+@@ -917,6 +918,7 @@ def _build_dependant_with_parameterless_dependencies(
+             0,
+             get_parameterless_sub_dependant(depends=depends, path=path),
+         )
++    dependant._request_param_names = _get_request_param_names(dependant)
+     body_params = _get_flat_body_params(dependant)
+     embed_body_fields = _should_embed_body_fields(body_params)
+     return dependant, body_params, embed_body_fields

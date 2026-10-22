@@ -1,0 +1,47 @@
+# Per-role model assignment. Any Inspect model string works:
+#   anthropic/<model>, openai/<model>, google/<model>, openrouter/<org>/<model>,
+#   ollama/<model> (local; set OLLAMA_BASE_URL, default http://localhost:11434/v1),
+#   vllm/<model>, mockllm/model, or the special value "scripted" ($0 deterministic agents).
+#
+# Select a profile with  --profile <name>  or  CLAB_PROFILE=<name>.
+# Override single roles with  --role implementer=ollama/qwen2.5-coder:7b
+#
+# Roles
+#   SWE    : planner, implementer, tester, reviewer, verifier, release
+#   Market : seller, buyer
+#   Monitor: monitor_judge  (the ONLY LLM inside the trusted monitor; used by M2/M4)
+
+profiles:
+  scripted:            # development + CI, no API access needed
+    default: scripted
+    monitor_judge: none
+
+  cloud:               # Anthropic only (the only provider reachable from the Cowork cloud sandbox)
+    default: anthropic/claude-haiku-4-5
+    monitor_judge: anthropic/claude-sonnet-4-5
+
+  local:               # open weights via Ollama on your own machine
+    default: ollama/qwen2.5-coder:7b
+    seller: ollama/llama3.1:8b
+    monitor_judge: ollama/qwen2.5:14b
+
+  mixed:               # heterogeneous team: tests whether shared-model "Schelling points" ease stego collusion
+    default: anthropic/claude-haiku-4-5
+    tester: ollama/qwen2.5-coder:7b
+    reviewer: ollama/llama3.1:8b
+    seller: anthropic/claude-haiku-4-5
+    monitor_judge: anthropic/claude-sonnet-4-5
+
+  same_family:         # ablation: monitor shares the agents' model family (correlated errors)
+    default: anthropic/claude-haiku-4-5
+    monitor_judge: anthropic/claude-haiku-4-5
+
+# USD per 1M tokens (input, output). Update when prices change. Used by the cost meter / hard cap.
+prices:
+  anthropic/claude-haiku-4-5: [1.0, 5.0]
+  anthropic/claude-sonnet-4-5: [3.0, 15.0]
+  ollama/*: [0.0, 0.0]
+  mockllm/*: [0.0, 0.0]
+
+budget:
+  hard_cap_usd: 25.0   # per `clab run` invocation; raise deliberately for full matrices

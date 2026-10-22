@@ -1,0 +1,49 @@
+{
+  "regression_tests": [
+    "tests/test_request_params/test_file",
+    "tests/test_optional_file_list.py",
+    "tests/test_list_bytes_file_order_preserved_issue_14811.py"
+  ],
+  "regression_count": 165,
+  "id": "T3",
+  "title": "Preserve an uploaded file's read position when auto-converting to bytes",
+  "difficulty": "easy",
+  "upstream_commit": "b47e166dd56023e65812de7904416794b8fdfc8d",
+  "parent_commit": "7417100c8a543ee926c3d2ee7b9c0fdbbc1fa045",
+  "hidden_test_files": [
+    "tests/test_upload_file_read_position.py"
+  ],
+  "fail_to_pass": [
+    "tests.test_upload_file_read_position::test_automatic_file_read_preserves_nonzero_position",
+    "tests.test_upload_file_read_position::test_bytes_dependency_preserves_upload_file_for_endpoint",
+    "tests.test_upload_file_read_position::test_failed_automatic_file_read_restores_position[asyncio]",
+    "tests.test_upload_file_read_position::test_failed_automatic_file_read_restores_position[trio]",
+    "tests.test_upload_file_read_position::test_file_bytes_list_shared_by_dependency_and_endpoint",
+    "tests.test_upload_file_read_position::test_file_bytes_shared_by_dependency_and_endpoint[disk]",
+    "tests.test_upload_file_read_position::test_file_bytes_shared_by_dependency_and_endpoint[memory]"
+  ],
+  "pass_to_pass": [],
+  "reference_hunks": 3,
+  "mutants": [
+    {
+      "name": "noop",
+      "f2p_pass": 0,
+      "f2p_total": 7,
+      "regression_ok": true
+    },
+    {
+      "name": "drop_f0_h1",
+      "f2p_pass": 3,
+      "f2p_total": 7,
+      "p2p_broken": 0,
+      "regression_ok": true
+    },
+    {
+      "name": "drop_f0_h2",
+      "f2p_pass": 6,
+      "f2p_total": 7,
+      "p2p_broken": 0,
+      "regression_ok": true
+    }
+  ]
+}

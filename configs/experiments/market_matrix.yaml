@@ -1,0 +1,9 @@
+scenario: market
+profile: scripted
+conditions: [A0_competitive, A1_shared_index, A2_honest_chat, A3_overt_cartel,
+             A4_tacit, A5_stego_rotation, A6_aware_stego]
+seeds: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+rounds: 30
+online_monitors: [M3]
+interventions: [entrant, quarantine]
+cap_usd: 100
