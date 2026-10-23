@@ -15,12 +15,13 @@ dependencies = [
     "pandas>=2",
     "matplotlib>=3.8",
     "python-dotenv>=1",
+    "openai>=1.50",          # OpenAI-compatible client: free tiers, routers, gateways, Ollama
+    "anthropic>=0.40",
+    "tabulate>=0.9",
 ]
 
 [project.optional-dependencies]
-anthropic = ["anthropic>=0.40"]
-openai = ["openai>=1.50"]
-local = ["openai>=1.50"]   # Ollama / vLLM speak the OpenAI protocol
+google = ["google-genai>=1.0"]   # only for Inspect's native google/ provider (we use Gemini's OpenAI endpoint)
 petri = []                 # install Petri separately: pip install git+https://github.com/safety-research/petri
 dev = ["pytest>=8"]
 

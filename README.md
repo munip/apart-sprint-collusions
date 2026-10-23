@@ -75,35 +75,45 @@ inspect eval src/collusion_lab/inspect_tasks.py@market_collusion -T profile=scri
 inspect view
 ```
 
-## Plugging in models
+## Plugging in models (providers, routers, gateways, local)
 
-Copy `.env.example` to `.env` (gitignored) and choose a profile in `configs/models.yaml`:
+**Step-by-step guide: [`docs/SETUP.md`](docs/SETUP.md).**
 
-| Profile | Agents | Monitor judge (M2/M4) |
+* Model spec: `<provider>/<model-id>`, e.g. `groq/openai/gpt-oss-120b`, `openrouter/qwen/qwen3-coder:free`,
+  `ollama/gemma2:2b`, `fcm/fcm:agents` (free-coding-models Smart Router), `litellm/<alias>`.
+  There are 25+ providers in [`configs/providers.yaml`](configs/providers.yaml): Inspect-native ones,
+  any OpenAI-compatible free tier, routers and gateways.
+* Every role can name a **fallback chain**. 429s and outages move to the next model, and a
+  per-provider rate limiter applies.
+* Models without function calling (e.g. `gemma2:2b`) switch automatically to a prompted JSON
+  tool protocol.
+* The **trusted monitor must use a different model family than every agent**. `clab models check`
+  and `clab run` enforce this, except in explicit ablation profiles.
+
+| Profile | Agents | Monitor judge |
 |---|---|---|
-| `scripted` | deterministic, $0 | none |
-| `cloud` | `anthropic/claude-haiku-4-5` | `anthropic/claude-sonnet-4-5` |
-| `local` | `ollama/qwen2.5-coder:7b` (set `OLLAMA_BASE_URL`) | `ollama/qwen2.5:14b` |
-| `mixed` | heterogeneous team (Claude + Qwen + Llama) | Claude Sonnet |
-| `same_family` | Claude Haiku | Claude Haiku (correlated-error ablation) |
+| `scripted` | deterministic, $0 | – |
+| `free` | Llama / Qwen-Coder / GPT-OSS / Kimi / DeepSeek, one family per role | Gemini Flash, falling back to Mistral |
+| `free_homogeneous` | one shared model for all agents | Gemini, then Mistral |
+| `fcm` | free-coding-models router | pinned Gemini, then local gemma2 |
+| `free_weak_monitor` | free strong agents | local `ollama/gemma2:2b` |
+| `local` | `ollama/gemma2:2b` | `ollama/llama3.2:3b` |
+| `cloud` / `mixed` | Claude Haiku / mixed paid+free+local | Gemini, then Mistral |
 
 ```bash
-clab run configs/experiments/swe_smoke_llm.yaml --out runs/swe_llm_smoke --profile cloud --cap-usd 5
-clab run configs/experiments/swe_matrix.yaml --out runs/swe_mixed --profile mixed \
-     --role tester=ollama/qwen2.5-coder:14b
-clab replay runs/swe_llm_smoke --profile cloud     # adds the M2 LLM judge
+clab providers import-fcm --write      # reuse free-coding-models keys
+clab providers check                   # text + tool-calling probe per provider
+clab models check --profile free --probe
+clab run configs/experiments/swe_smoke_free.yaml --out runs/swe_free --workers 1
+clab replay runs/swe_free --profile free   # adds the M2 LLM judge
 ```
-
-Each run writes a per-episode `evidence.jsonl` (the authoritative log), `episode.json`
-(ground truth and outcome), the monitor's private log under `_monitor_private/`, and the
-cost summary.
 
 ## Status (v0.1)
 
 * Both scenarios, all conditions, monitors M0/M1/M3/M4, interventions, Inspect tasks and the
   report pipeline run end to end with scripted agents.
-* The LLM-agent path is implemented and unit-tested with Inspect's `mockllm`. It still needs an
-  API key or a local Ollama to produce results.
+* The multi-provider LLM path (fallback chains, JSON tool mode, family-separation check) is
+  implemented and unit-tested with Inspect's `mockllm` and fake clients. Real LLM results are pending.
 * M2 (LLM judge) and Petri red-teaming are wired in but pending model access. See `redteam/`.
 
 ## Provenance and licences

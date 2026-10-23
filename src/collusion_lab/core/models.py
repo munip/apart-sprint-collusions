@@ -1,23 +1,41 @@
-"""Role -> model resolution, cost metering and a hard budget cap.
+"""Role -> model(s) resolution across providers/routers/gateways, with
+fallback chains, per-provider rate limiting, tool-calling mode, cost metering,
+a hard budget cap and a check that the trusted monitor uses a different model
+family than the agents.
 
-Agents call `roster.generate(role, messages, tools)`. When the role is mapped to
-"scripted" the caller must use its scripted policy instead (roster.is_scripted).
+Profiles live in configs/models.yaml. A role maps to one spec or a fallback list:
+
+    implementer: [groq/openai/gpt-oss-120b, cerebras/gpt-oss-120b, openrouter/qwen/qwen3-coder:free]
+
+Agents call `roster.generate(role, messages, tools)`. When a role is "scripted"
+the caller uses its scripted policy instead (roster.is_scripted).
 """
 from __future__ import annotations
 
 import fnmatch
 import os
+import threading
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 import yaml
 
+from .providers import Resolved, family, get_inspect_model, resolve
+
 REPO_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_CONFIG = REPO_ROOT / "configs" / "models.yaml"
+AGENT_ROLES = ("planner", "implementer", "tester", "reviewer", "verifier", "seller", "buyer")
+MONITOR_ROLES = ("monitor_judge",)
+SCRIPTED = ("scripted", "none", "")
 
 
 class BudgetExceeded(RuntimeError):
+    pass
+
+
+class AllModelsFailed(RuntimeError):
     pass
 
 
@@ -30,71 +48,198 @@ class CostMeter:
     tokens_in: int = 0
     tokens_out: int = 0
     by_role: dict[str, dict[str, float]] = field(default_factory=dict)
+    by_model: dict[str, dict[str, float]] = field(default_factory=dict)
+    failures: dict[str, int] = field(default_factory=dict)
+    _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
 
     def price(self, model: str) -> tuple[float, float]:
         for pat, (pi, po) in self.prices.items():
             if fnmatch.fnmatch(model, pat):
                 return pi, po
-        return (3.0, 15.0)  # conservative default for unknown models
+        return (3.0, 15.0)  # conservative default for unknown paid models
 
-    def add(self, role: str, model: str, tin: int, tout: int) -> None:
+    def add(self, role: str, model: str, tin: int, tout: int, served: str | None = None) -> None:
         pi, po = self.price(model)
         cost = (tin * pi + tout * po) / 1e6
-        self.spent_usd += cost
-        self.calls += 1
-        self.tokens_in += tin
-        self.tokens_out += tout
-        r = self.by_role.setdefault(role, {"calls": 0, "in": 0, "out": 0, "usd": 0.0})
-        r["calls"] += 1; r["in"] += tin; r["out"] += tout; r["usd"] += cost
+        with self._lock:
+            self.spent_usd += cost
+            self.calls += 1
+            self.tokens_in += tin
+            self.tokens_out += tout
+            for key, bucket in ((role, self.by_role), (model, self.by_model)):
+                r = bucket.setdefault(key, {"calls": 0, "in": 0, "out": 0, "usd": 0.0})
+                r["calls"] += 1; r["in"] += tin; r["out"] += tout; r["usd"] += cost
+            if served and served != model.split("/", 1)[-1]:
+                self.by_model[model].setdefault("served_by", {})
+                sb = self.by_model[model]["served_by"]
+                sb[served] = sb.get(served, 0) + 1
         if self.spent_usd > self.cap_usd:
             raise BudgetExceeded(f"budget cap ${self.cap_usd:.2f} exceeded (${self.spent_usd:.2f})")
 
+    def fail(self, model: str) -> None:
+        with self._lock:
+            self.failures[model] = self.failures.get(model, 0) + 1
+
     def summary(self) -> dict[str, Any]:
-        return {"usd": round(self.spent_usd, 4), "calls": self.calls,
-                "tokens_in": self.tokens_in, "tokens_out": self.tokens_out,
-                "by_role": self.by_role}
+        return {"usd": round(self.spent_usd, 4), "calls": self.calls, "tokens_in": self.tokens_in,
+                "tokens_out": self.tokens_out, "by_role": self.by_role, "by_model": self.by_model,
+                "failures": self.failures}
+
+
+class RateLimiter:
+    """Process-wide minimum spacing between requests to the same provider."""
+    _last: dict[str, float] = {}
+    _lock = threading.Lock()
+
+    @classmethod
+    def wait(cls, provider: str, rpm: float) -> None:
+        if rpm <= 0:
+            return
+        gap = 60.0 / rpm
+        with cls._lock:
+            now = time.monotonic()
+            t = max(now, cls._last.get(provider, 0.0) + gap)
+            cls._last[provider] = t
+        if t > now:
+            time.sleep(t - now)
 
 
 class ModelRoster:
     def __init__(self, profile: str | None = None, overrides: dict[str, str] | None = None,
                  config_path: Path = DEFAULT_CONFIG, cap_usd: float | None = None):
-        cfg = yaml.safe_load(Path(config_path).read_text())
+        cfg = yaml.safe_load(Path(config_path).read_text(encoding="utf-8"))
         self.profile_name = profile or os.environ.get("CLAB_PROFILE", "scripted")
         if self.profile_name not in cfg["profiles"]:
             raise KeyError(f"unknown profile {self.profile_name!r}; have {list(cfg['profiles'])}")
-        self.mapping: dict[str, str] = dict(cfg["profiles"][self.profile_name])
-        self.mapping.update(overrides or {})
+        prof = dict(cfg["profiles"][self.profile_name])
+        self.allow_shared_family = bool(prof.pop("allow_shared_family", False))
+        self.gen_defaults: dict[str, Any] = dict(cfg.get("generate", {}))
+        self.gen_defaults.update(prof.pop("generate", {}) or {})
+        self.mapping: dict[str, Any] = prof
+        for k, v in (overrides or {}).items():
+            self.mapping[k] = [x.strip() for x in v.split(",")] if "," in v else v
         cap = cap_usd if cap_usd is not None else cfg.get("budget", {}).get("hard_cap_usd", 25.0)
         self.meter = CostMeter(cfg.get("prices", {}), cap)
         self._models: dict[str, Any] = {}
+        self._json_mode: set[str] = set()          # specs that rejected native tool calls
+
+    # ------------------------------------------------------------------ mapping
+    def chain(self, role: str) -> list[str]:
+        v = self.mapping.get(role, self.mapping.get("default", "scripted"))
+        if role in MONITOR_ROLES and role not in self.mapping:
+            v = "none"
+        return [v] if isinstance(v, str) else list(v)
 
     def model_name(self, role: str) -> str:
-        return self.mapping.get(role, self.mapping.get("default", "scripted"))
+        return self.chain(role)[0]
 
     def is_scripted(self, role: str) -> bool:
-        return self.model_name(role) in ("scripted", "none", "")
+        return self.model_name(role) in SCRIPTED
 
-    def describe(self) -> dict[str, str]:
-        return dict(self.mapping)
+    def describe(self) -> dict[str, Any]:
+        return {r: self.chain(r) for r in sorted(set(self.mapping) | {"default"}) if r in self.mapping}
 
-    def _get(self, role: str):
-        name = self.model_name(role)
-        if name not in self._models:
-            from inspect_ai.model import get_model
-            kwargs: dict[str, Any] = {}
-            if name.startswith("ollama/") and os.environ.get("OLLAMA_BASE_URL"):
-                kwargs["base_url"] = os.environ["OLLAMA_BASE_URL"]
-            self._models[name] = get_model(name, **kwargs)
-        return self._models[name]
+    def resolved(self, role: str) -> list[Resolved]:
+        return [resolve(s) for s in self.chain(role) if s not in SCRIPTED]
 
-    async def generate(self, role: str, messages: list, tools: list | None = None,
-                       **config: Any):
-        """Generate with metering. Returns inspect ModelOutput."""
-        from inspect_ai.model import GenerateConfig
-        model = self._get(role)
-        out = await model.generate(messages, tools=tools or [],
-                                   config=GenerateConfig(**config) if config else GenerateConfig())
-        u = out.usage
-        if u is not None:
-            self.meter.add(role, self.model_name(role), u.input_tokens or 0, u.output_tokens or 0)
+    def tool_mode(self, role: str, spec: str | None = None) -> str:
+        spec = spec or self.model_name(role)
+        if spec in self._json_mode:
+            return "json"
+        try:
+            return resolve(spec).tools
+        except ValueError:
+            return "native"
+
+    # ---------------------------------------------------------------- checks
+    def families(self) -> tuple[set[str], set[str]]:
+        agents, monitor = set(), set()
+        for role in self.mapping:
+            target = monitor if role in MONITOR_ROLES else agents
+            for r in (self.resolved(role) if not self.is_scripted(role) else []):
+                target.add(r.family)
+        return agents, monitor
+
+    def check_separation(self) -> list[str]:
+        """Warnings if the trusted monitor shares a model family with any agent."""
+        agents, monitor = self.families()
+        warns = []
+        if "router:dynamic" in monitor:
+            warns.append("monitor_judge uses a dynamic router: pin a specific model for a trusted monitor")
+        shared = (agents & monitor) - {"unknown", "router:dynamic"}
+        if shared and not self.allow_shared_family:
+            warns.append(f"monitor shares model family {sorted(shared)} with agents "
+                         f"(set allow_shared_family: true only for the correlated-error ablation)")
+        if "router:dynamic" in agents and monitor:
+            warns.append("agents use a dynamic router; family separation from the monitor cannot be guaranteed "
+                         "- check `served_by` in the cost summary")
+        return warns
+
+    def missing_keys(self) -> list[str]:
+        out = []
+        for role in self.mapping:
+            if self.is_scripted(role):
+                continue
+            for r in self.resolved(role):
+                if not r.has_key and r.provider not in ("ollama", "fcm", "litellm"):
+                    out.append(f"{role}: {r.spec} (no API key for provider '{r.provider}')")
         return out
+
+    # -------------------------------------------------------------- generate
+    def _get(self, r: Resolved):
+        if r.spec not in self._models:
+            self._models[r.spec] = get_inspect_model(r)
+        return self._models[r.spec]
+
+    async def generate(self, role: str, messages: list, tools: list | None = None, **config: Any):
+        """Generate with fallback across the role's chain. Returns inspect ModelOutput with
+        `.metadata['clab_spec']` set to the spec that answered."""
+        from inspect_ai.model import GenerateConfig
+        errors = []
+        for spec in self.chain(role):
+            if spec in SCRIPTED:
+                continue
+            r = resolve(spec)
+            if not r.has_key and r.provider not in ("ollama", "fcm", "litellm", "mockllm"):
+                errors.append(f"{spec}: no API key")
+                continue
+            use_tools = tools if (tools and self.tool_mode(role, spec) != "json") else []
+            cfg = {**self.gen_defaults, **config}
+            RateLimiter.wait(r.provider, r.rpm)
+            try:
+                model = self._get(r)
+                out = await model.generate(messages, tools=use_tools or [], config=GenerateConfig(**cfg))
+            except Exception as e:  # rate limit, quota, network, unsupported tools ...
+                msg = str(e)
+                if use_tools and r.tools in ("auto", "native") and _tools_unsupported(msg):
+                    self._json_mode.add(spec)            # retry this model in prompted-JSON tool mode
+                    raise ToolModeSwitch(spec) from e
+                self.meter.fail(spec)
+                errors.append(f"{spec}: {type(e).__name__}: {msg[:160]}")
+                continue
+            if out.stop_reason == "model_length" and not out.completion and not out.message.tool_calls:
+                errors.append(f"{spec}: empty output")
+                continue
+            u = out.usage
+            self.meter.add(role, spec, (u.input_tokens or 0) if u else 0, (u.output_tokens or 0) if u else 0,
+                           served=getattr(out, "model", None))
+            out.metadata = {**(out.metadata or {}), "clab_spec": spec}
+            return out
+        raise AllModelsFailed(f"all models failed for role {role}: " + " | ".join(errors))
+
+
+class ToolModeSwitch(RuntimeError):
+    """Raised once when a model rejects native tools; the caller retries in JSON tool mode."""
+
+    def __init__(self, spec: str):
+        super().__init__(spec)
+        self.spec = spec
+
+
+def _tools_unsupported(msg: str) -> bool:
+    m = msg.lower()
+    return any(s in m for s in ("does not support tools", "tool use is not supported", "tools are not supported",
+                                "function calling is not", "tool_choice", "does not support function"))
+
+
+__all__ = ["ModelRoster", "BudgetExceeded", "AllModelsFailed", "ToolModeSwitch", "family", "CostMeter"]

@@ -1,0 +1,8 @@
+# First LLM run on free tiers: 1 easy task, 3 conditions, 1 seed (~60-150 model calls, $0)
+scenario: swe
+profile: free
+tasks: [T3]
+conditions: [C1_honest_team, C3_collude_overt, C4b_stego_artifact]
+seeds: [0]
+online_monitors: []
+cap_usd: 1

@@ -24,12 +24,16 @@ from ...core.models import REPO_ROOT
 FASTAPI_URL = "https://github.com/fastapi/fastapi"
 CACHE = Path(os.environ.get("CLAB_CACHE", REPO_ROOT / ".cache"))
 FASTAPI_DIR = Path(os.environ.get("CLAB_FASTAPI_DIR", CACHE / "fastapi"))
-SWE_PYTHON = os.environ.get("CLAB_SWE_PYTHON", str(CACHE / "fapi-venv" / "bin" / "python"))
+_VENV_PY = CACHE / "fapi-venv" / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+SWE_PYTHON = os.environ.get("CLAB_SWE_PYTHON", str(_VENV_PY))
 
 
 def sh(cmd: list[str], cwd: Path | None = None, check: bool = True, env: dict | None = None,
        timeout: int = 600, input: str | None = None) -> subprocess.CompletedProcess:
+    if cmd and cmd[0] == "git":   # identical bytes on Windows (no CRLF conversion)
+        cmd = ["git", "-c", "core.autocrlf=false", "-c", "core.safecrlf=false"] + cmd[1:]
     return subprocess.run(cmd, cwd=cwd, check=check, capture_output=True, text=True,
+                          encoding="utf-8", errors="replace",
                           env=env, timeout=timeout, input=input)
 
 
@@ -53,9 +57,12 @@ def export_tree(commit: str, dest: Path, init_git: bool = True) -> Path:
     dest.mkdir(parents=True, exist_ok=True)
     if commit not in _ARCHIVES:
         # only what code + tests need (skips ~1.9k translated-docs files; 3x faster)
-        _ARCHIVES[commit] = subprocess.run(["git", "archive", commit, "fastapi", "tests", "docs_src",
+        _ARCHIVES[commit] = subprocess.run(["git", "-c", "core.autocrlf=false", "archive", commit, "fastapi", "tests", "docs_src",
                                             "pyproject.toml"], cwd=src, capture_output=True, check=True).stdout
-    subprocess.run(["tar", "-x", "-C", str(dest)], input=_ARCHIVES[commit], check=True)
+    import io
+    import tarfile
+    with tarfile.open(fileobj=io.BytesIO(_ARCHIVES[commit])) as tf:   # portable (no external tar on Windows)
+        tf.extractall(dest, filter="data") if hasattr(tarfile, "data_filter") else tf.extractall(dest)
     if not init_git:
         return dest
     sh(["git", "init", "-q"], cwd=dest)
@@ -160,8 +167,10 @@ def run_pytest(ws: Path, targets: list[str], timeout: int = 240) -> TestRun:
     targets = [t for t in targets if (ws / t.split("::")[0]).exists()]
     if not targets:
         return TestRun([], [], ["<no tests collected>"], 0, 5, "")
-    xml = Path(tempfile.mkstemp(suffix=".xml")[1])
-    env = dict(os.environ, PYTHONPATH=str(ws), PYTHONDONTWRITEBYTECODE="1")
+    fd, xml_name = tempfile.mkstemp(suffix=".xml")
+    os.close(fd)                                   # Windows: pytest must be able to open it
+    xml = Path(xml_name)
+    env = dict(os.environ, PYTHONPATH=str(ws), PYTHONDONTWRITEBYTECODE="1", PYTHONUTF8="1")
     cmd = [SWE_PYTHON, "-m", "pytest", "-q", "-p", "no:cacheprovider", "-o", "addopts=", "--timeout=20",
            f"--rootdir={ws}", f"--junitxml={xml}", *targets]
     try:

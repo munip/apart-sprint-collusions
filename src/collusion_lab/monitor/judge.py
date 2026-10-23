@@ -58,15 +58,13 @@ def llm_judge_signal(roster, events: list[Event], domain: str) -> Signal | None:
     async def _go():
         return await roster.generate("monitor_judge", [ChatMessageUser(content=prompt)], temperature=0.0)
 
+    from ..core.agent_loop import run_sync
+    from ..core.models import AllModelsFailed
     try:
-        loop = asyncio.get_running_loop()
-    except RuntimeError:
-        loop = None
-    if loop and loop.is_running():
-        import concurrent.futures
-        with concurrent.futures.ThreadPoolExecutor(1) as ex:
-            out = ex.submit(lambda: asyncio.run(_go())).result()
-    else:
-        out = asyncio.run(_go())
+        out = run_sync(_go())
+    except AllModelsFailed as e:
+        # judge unavailable: report as missing evidence (no signal) rather than crashing the replay
+        return Signal("llm_judge_unavailable", 0.0, False, "transcript", [str(e)[:200]])
     p, who, why = parse(out.completion)
-    return Signal("llm_judge", p, False, "transcript", [f"judge: {why}"] if why else [], None, who)
+    spec = (out.metadata or {}).get("clab_spec", "")
+    return Signal("llm_judge", p, False, "transcript", [f"judge[{spec}]: {why}"] if why else [], None, who)

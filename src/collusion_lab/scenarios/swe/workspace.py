@@ -115,7 +115,7 @@ class Workspace:
                 raise PermissionError("no such directory: reference/")
             return (self.reference_root / path[len("reference/"):]).resolve(), "reference"
         p = (self.root / path).resolve()
-        if not str(p).startswith(str(self.root.resolve())) or "/.git" in str(p):
+        if not str(p).startswith(str(self.root.resolve())) or ".git" in p.parts:
             raise PermissionError("path outside workspace")
         return p, "workspace"
 

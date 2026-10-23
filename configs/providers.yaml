@@ -1,0 +1,87 @@
+# Provider / router / gateway registry.
+#
+# A model is referenced everywhere as   <provider>/<model-id>
+#   groq/llama-3.3-70b-versatile
+#   openrouter/qwen/qwen3-coder:free
+#   ollama/gemma2:2b
+#   fcm/fcm:agents            (free-coding-models Smart Router, set "agents")
+#   litellm/my-alias          (any LiteLLM / Portkey / custom OpenAI-compatible gateway)
+#
+# kind:
+#   native        -> Inspect's built-in provider (anthropic, openai, google, mistral, groq, ollama ...)
+#   openai_compat -> Inspect's generic `openai-api` client with base_url + api_key below
+#   router        -> openai_compat endpoint whose upstream model is chosen dynamically
+#                    (the actually-served model is recorded per call when the API reports it)
+#
+# api_key_env may list alternatives; the first one that is set wins. Keys are read from the
+# environment or from the project's .env (never committed). `clab providers check` probes
+# every provider that has a key: plain-text reply + tool-call support + latency.
+#
+# rpm: client-side request budget per minute (free tiers are strict; 429s also trigger fallback).
+# tools: native | json | auto. `json` = prompted tool calling for models without function calling
+#        (e.g. gemma2 on Ollama). `auto` = try native, switch to json if the API rejects tools.
+# Base URLs marked `verify: true` came from provider docs as of 2026 but were not probe-tested
+# from the sprint sandbox (no egress) - run `clab providers check` once.
+
+providers:
+  # ---- paid / first-party ------------------------------------------------------------
+  anthropic:   {kind: native, api_key_env: [ANTHROPIC_API_KEY], rpm: 50, tools: native}
+  openai:      {kind: native, api_key_env: [OPENAI_API_KEY], rpm: 60, tools: native}
+
+  # ---- local -------------------------------------------------------------------------
+  ollama:
+    kind: native
+    base_url_env: OLLAMA_BASE_URL
+    base_url: http://localhost:11434/v1
+    api_key: ollama            # Ollama ignores the key
+    rpm: 1000
+    tools: auto                # gemma2 has no tool support -> json mode is used automatically
+
+  # ---- free tiers (the providers free-coding-models supports) --------------------------
+  groq:        {kind: openai_compat, base_url: https://api.groq.com/openai/v1, api_key_env: [GROQ_API_KEY], rpm: 25, tools: native}
+  cerebras:    {kind: openai_compat, base_url: https://api.cerebras.ai/v1, api_key_env: [CEREBRAS_API_KEY], rpm: 25, tools: native}
+  nvidia:      {kind: openai_compat, base_url: https://integrate.api.nvidia.com/v1, api_key_env: [NVIDIA_API_KEY], rpm: 35, tools: native}
+  openrouter:  {kind: openai_compat, base_url: https://openrouter.ai/api/v1, api_key_env: [OPENROUTER_API_KEY], rpm: 15, tools: native}
+  google:      {kind: openai_compat, base_url: https://generativelanguage.googleapis.com/v1beta/openai, api_key_env: [GOOGLE_API_KEY, GEMINI_API_KEY], rpm: 10, tools: native}
+  github:      {kind: openai_compat, base_url: https://models.github.ai/inference, api_key_env: [GITHUB_MODELS_TOKEN, GITHUB_TOKEN], rpm: 10, tools: native}
+  mistral:     {kind: openai_compat, base_url: https://api.mistral.ai/v1, api_key_env: [MISTRAL_API_KEY], rpm: 30, tools: native}
+  codestral:   {kind: openai_compat, base_url: https://codestral.mistral.ai/v1, api_key_env: [CODESTRAL_API_KEY, MISTRAL_API_KEY], rpm: 30, tools: native}
+  sambanova:   {kind: openai_compat, base_url: https://api.sambanova.ai/v1, api_key_env: [SAMBANOVA_API_KEY], rpm: 10, tools: native}
+  huggingface: {kind: openai_compat, base_url: https://router.huggingface.co/v1, api_key_env: [HF_TOKEN, HUGGINGFACE_API_KEY], rpm: 20, tools: native}
+  cloudflare:  {kind: openai_compat, base_url: "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/ai/v1", api_key_env: [CLOUDFLARE_API_TOKEN], rpm: 50, tools: auto}
+  together:    {kind: openai_compat, base_url: https://api.together.xyz/v1, api_key_env: [TOGETHER_API_KEY], rpm: 30, tools: native}
+  deepinfra:   {kind: openai_compat, base_url: https://api.deepinfra.com/v1/openai, api_key_env: [DEEPINFRA_API_KEY], rpm: 30, tools: native}
+  fireworks:   {kind: openai_compat, base_url: https://api.fireworks.ai/inference/v1, api_key_env: [FIREWORKS_API_KEY], rpm: 30, tools: native}
+  zai:         {kind: openai_compat, base_url: https://api.z.ai/api/paas/v4, api_key_env: [ZAI_API_KEY], rpm: 20, tools: native, verify: true}
+  scaleway:    {kind: openai_compat, base_url: https://api.scaleway.ai/v1, api_key_env: [SCALEWAY_API_KEY], rpm: 20, tools: native, verify: true}
+  dashscope:   {kind: openai_compat, base_url: https://dashscope-intl.aliyuncs.com/compatible-mode/v1, api_key_env: [DASHSCOPE_API_KEY], rpm: 20, tools: native, verify: true}
+  novita:      {kind: openai_compat, base_url: https://api.novita.ai/v3/openai, api_key_env: [NOVITA_API_KEY], rpm: 20, tools: native, verify: true}
+  ovh:         {kind: openai_compat, base_url: https://oai.endpoints.kepler.ai.cloud.ovh.net/v1, api_key_env: [OVH_AI_ENDPOINTS_ACCESS_TOKEN], rpm: 20, tools: auto, verify: true}
+  llm7:        {kind: openai_compat, base_url: https://api.llm7.io/v1, api_key_env: [LLM7_API_KEY], api_key: unused, rpm: 20, tools: auto, verify: true}
+  ollama_cloud: {kind: openai_compat, base_url: https://ollama.com/v1, api_key_env: [OLLAMA_API_KEY], rpm: 20, tools: auto, verify: true}
+
+  # ---- routers / gateways ------------------------------------------------------------
+  # free-coding-models Smart Router (start it with: free-coding-models --daemon-bg)
+  #   fcm/fcm            -> default set,   fcm/fcm:<set>  -> a named set (see --sync-set)
+  fcm:         {kind: router, base_url_env: FCM_BASE_URL, base_url: http://localhost:19280/v1, api_key: fcm-local, rpm: 120, tools: native}
+  # LiteLLM proxy (`litellm --config litellm.yaml`), Portkey, or any other OpenAI-compatible gateway
+  litellm:     {kind: router, base_url_env: LITELLM_BASE_URL, base_url: http://localhost:4000/v1, api_key_env: [LITELLM_API_KEY], api_key: sk-anything, rpm: 120, tools: native}
+  custom:      {kind: openai_compat, base_url_env: CUSTOM_BASE_URL, api_key_env: [CUSTOM_API_KEY], rpm: 60, tools: auto}
+
+  # ---- test-only -----------------------------------------------------------------------
+  mockllm:     {kind: native, rpm: 100000, tools: native}
+
+# Model-family detection (used to keep the trusted monitor on a *different* family than the agents).
+families:
+  claude: [claude]
+  gpt: [gpt-, "o1", "o3", "o4", gpt-oss]
+  gemini: [gemini]
+  gemma: [gemma]
+  llama: [llama]
+  qwen: [qwen, qwq]
+  mistral: [mistral, codestral, devstral, magistral, ministral, mixtral]
+  deepseek: [deepseek]
+  glm: [glm]
+  kimi: [kimi, moonshot]
+  phi: [phi-]
+  nemotron: [nemotron]

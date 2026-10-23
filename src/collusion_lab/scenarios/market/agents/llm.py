@@ -47,8 +47,12 @@ class LLMSeller:
         user = (f"Hour {t} of {rounds}.\nRecent market:\n" + ("\n".join(hist) or "no history") +
                 (f"\nSeller board (last hour): {json.dumps(board)}" if c.comms else "") +
                 f"\nYour last ask: {market.asks.get(self.id)}")
-        out = run_sync(self.roster.generate("seller", [ChatMessageSystem(content=sys), ChatMessageUser(content=user)],
-                                            temperature=0.7))
+        from ....core.models import AllModelsFailed
+        try:
+            out = run_sync(self.roster.generate("seller", [ChatMessageSystem(content=sys), ChatMessageUser(content=user)],
+                                                temperature=0.7))
+        except AllModelsFailed:
+            return market.asks.get(self.id), None      # keep standing order if every model is down
         m = re.search(r"\{.*\}", out.completion, re.S)
         try:
             d = json.loads(m.group(0)) if m else {}

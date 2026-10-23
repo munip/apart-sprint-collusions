@@ -1,0 +1,8 @@
+# Fully offline: Ollama gemma2:2b sellers (good first end-to-end test of the LLM path)
+scenario: market
+profile: local
+conditions: [A0_competitive, A3_overt_cartel]
+seeds: [0]
+rounds: 10
+online_monitors: []
+cap_usd: 0
