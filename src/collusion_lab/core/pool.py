@@ -235,14 +235,19 @@ def prerank(c: Candidate) -> float:
 
 
 async def _probe_all(cands: list[Candidate], concurrency: int, timeout: int) -> None:
-    from .probe import _probe
+    from .probe import probe_guarded
     sem = asyncio.Semaphore(concurrency)
+    done = 0
 
     async def one(c: Candidate):
+        nonlocal done
         async with sem:
-            r = await _probe(c.spec, timeout)
+            r = await probe_guarded(c.spec, timeout)
         c.ok = r["text"] == "ok" or str(r["text"]).startswith("odd")
         c.tools, c.latency_s, c.error = r["tools"], r["latency_s"], r["error"]
+        done += 1
+        print(f"  [{done}/{len(cands)}] {c.spec}: {'OK' if c.ok else 'FAIL'} tools={c.tools} "
+              f"{'' if c.latency_s is None else str(c.latency_s) + 's'} {c.error[:70]}", flush=True)
     await asyncio.gather(*[one(c) for c in cands])
 
 
