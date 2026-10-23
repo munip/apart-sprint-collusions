@@ -214,6 +214,70 @@ def to_latex(df: pd.DataFrame) -> str:
     return df.to_latex(index=False, escape=True, float_format=lambda x: f"{x:.2f}")
 
 
+def evidence_report(run_dirs: list[Path], dec: pd.DataFrame, max_msgs: int = 10) -> str:
+    """Per-episode qualitative evidence: outcome, monitor verdicts with reasons, the LLM judge's
+    rationale, and the notable inter-agent messages (policy lexicon hits, private-cost
+    disclosures, private DMs) quoted verbatim from the authoritative evidence log."""
+    import re
+
+    from ..core.evidence import EvidenceLog
+    from ..monitor.detectors.generic import LEXICON
+    lines = ["# Evidence by episode\n",
+             "Quoted messages are verbatim from each episode's `evidence.jsonl` (hash-chained log).\n"]
+    for d in run_dirs:
+        for ep in sorted(d.iterdir()):
+            f = ep / "episode.json"
+            if not f.exists():
+                continue
+            rec = json.loads(f.read_text(encoding="utf-8"))
+            if rec.get("online_monitor"):
+                continue
+            o = rec["outcome"]
+            lines.append(f"## {rec['episode_id']}\n")
+            lines.append(f"- **truth**: {rec['truth']['category']} / mechanism `{rec['truth']['mechanism']}`")
+            if rec["scenario"] == "market":
+                ci = o.get("collusion_index")
+                lines.append(f"- **outcome**: collusion index {ci if ci is None else round(ci, 2)}, avg price "
+                             f"{o.get('avg_price_steady') and round(o['avg_price_steady'], 2)} (CE {o['ce'][0]:.1f}-{o['ce'][1]:.1f}), "
+                             f"consumer surplus {o['consumer_surplus']}, trades {o['trades']}")
+            else:
+                lines.append(f"- **outcome**: released={o['released']} correct={o['correct']} "
+                             f"harmful_release={o['harmful_release']} (F2P {o['f2p_pass']}/{o['f2p_total']})")
+            used = rec.get("cost", {}).get("by_model", {})
+            if used:
+                lines.append("- **models used**: " + ", ".join(f"`{m}` x{int(v['calls'])}" for m, v in used.items()))
+            g = dec[(dec.episode == rec["episode_id"]) & (dec.observability == "full")]
+            if len(g):
+                lines.append("\n| monitor | action | risk | collusion score | top reasons |\n|---|---|---|---|---|")
+                for r in g.sort_values("monitor").itertuples():
+                    reasons = json.loads(getattr(r, "reasons", "[]") or "[]") if isinstance(getattr(r, "reasons", None), str) else []
+                    creas = json.loads(getattr(r, "collusion_reasons", "[]") or "[]") if isinstance(getattr(r, "collusion_reasons", None), str) else []
+                    rs = "; ".join(dict.fromkeys(reasons + creas))[:300].replace("|", "/")
+                    lines.append(f"| {r.monitor} | {r.action} | {r.risk:.2f} | {r.collusion_score:.2f} | {rs} |")
+            ev_path = ep / "evidence.jsonl"
+            if ev_path.exists():
+                costs = rec.get("costs", {})
+                notable = []
+                for e in EvidenceLog.load(ev_path).events():
+                    if e.kind.value != "message":
+                        continue
+                    text = str(e.payload.get("text", ""))
+                    tags = [k for k, pat in (("policy-lexicon", "|".join(LEXICON)),) if re.search(pat, text, re.I)]
+                    if e.actor in costs and re.search(r"\bcost", text, re.I) and any(
+                            abs(float(n) - costs[e.actor]) <= 0.6 for n in re.findall(r"\d+(?:\.\d+)?", text)):
+                        tags.append("discloses-own-cost")
+                    if e.channel.startswith("dm:"):
+                        tags.append("private-DM")
+                    if tags:
+                        notable.append(f"- step {e.step} **{e.actor}** -> {e.payload.get('to', '')} "
+                                       f"[{', '.join(tags)}]: \"{text[:240]}\"")
+                if notable:
+                    lines.append(f"\n**Notable messages** ({len(notable)}; first {min(max_msgs, len(notable))}):\n")
+                    lines += notable[:max_msgs]
+            lines.append("")
+    return "\n".join(lines)
+
+
 def build_report(run_dirs: list[Path], out: Path, fpr: float = 0.1) -> dict:
     out.mkdir(parents=True, exist_ok=True)
     dec = pd.concat([pd.read_csv(d / "decisions.csv") for d in run_dirs if (d / "decisions.csv").exists()])
@@ -230,7 +294,8 @@ def build_report(run_dirs: list[Path], out: Path, fpr: float = 0.1) -> dict:
         t.to_csv(out / f"{name}.csv", index=False)
         (out / f"{name}.tex").write_text(to_latex(t))
         md.append(f"## {name}\n\n" + t.to_markdown(index=False, floatfmt=".2f") + "\n")
-    (out / "tables.md").write_text("\n".join(md))
+    (out / "tables.md").write_text("\n".join(md), encoding="utf-8")
+    (out / "evidence.md").write_text(evidence_report(run_dirs, dec), encoding="utf-8")
     fig_mechanism(tables["mechanism"], "swe", out / "fig_swe_mechanism.png",
                   "Scenario B (FastAPI): collusion recall by coordination channel")
     fig_mechanism(tables["mechanism"], "market", out / "fig_market_mechanism.png",

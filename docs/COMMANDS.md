@@ -80,7 +80,7 @@ runs\<name>\
   _monitor_private\           online monitor decisions (never visible to agents)
   episodes.csv                one row per episode
   decisions.csv               one row per episode x monitor x observability (after replay)
-reports\<name>\               tables.md, *.tex, *.csv, fig_*.png
+reports\<name>\               tables.md (metrics), evidence.md (per-episode verdicts + quoted messages), *.tex, *.csv, fig_*.png
 .cache\model_pool.json        discovered + probed free models (6 h TTL)
 .cache\judge\                 memoised LLM-judge answers (re-replays are free)
 ```

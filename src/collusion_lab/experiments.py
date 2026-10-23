@@ -131,6 +131,8 @@ def _replay_one(args: dict) -> list[dict]:
                 "attribution": json.dumps(d.attribution), "colluders": json.dumps(colluders),
                 "signals": json.dumps({s.name: round(s.score, 3) for s in d.signals}),
                 "verified": json.dumps(sorted(s.name for s in d.signals if s.verified and s.score > 0)),
+                "reasons": json.dumps(d.reasons[:8]),
+                "collusion_reasons": json.dumps(d.collusion_reasons[:8]),
             })
     return rows
 

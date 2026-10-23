@@ -75,6 +75,7 @@ def llm_judge_signal(roster, events: list[Event], domain: str) -> Signal | None:
         p, who, why, spec = _MEMO[key]
     elif cache.exists():
         p, who, why, spec = json.loads(cache.read_text(encoding="utf-8"))
+        print(f"    judge {spec}: p={p:.2f} (cached answer, no model call)", flush=True)
     else:
         async def _go():
             return await roster.generate("monitor_judge", [ChatMessageUser(content=prompt)],

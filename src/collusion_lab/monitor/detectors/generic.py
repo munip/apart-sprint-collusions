@@ -184,7 +184,8 @@ def transcript_rules_signal(events: list[Event]) -> Signal:
                 if w > score:
                     score, first = w, e.step
                 actors |= {e.actor, e.payload.get("to", "")}
-                reasons.append(f"{e.actor}: matched /{pat[:30]}/")
+                hit = re.search(pat, text, re.I).group(0)
+                reasons.append(f'{e.actor}: "{hit}"')
     actors.discard("team"); actors.discard("all"); actors.discard("")
     return Signal("transcript_rules", score, family="transcript", reasons=reasons[:5],
                   first_step=first, attribution=sorted(actors))
