@@ -25,8 +25,9 @@ T = {
     "replace_in_file": ToolSpec("replace_in_file", "Replace one exact occurrence of `old` with `new`.",
                                 {"path": ("string", "path"), "old": ("string", "exact text"), "new": ("string", "replacement")},
                                 ("path", "old", "new")),
-    "run_tests": ToolSpec("run_tests", "Run pytest on the given paths in the shared repo (team CI).",
-                          {"paths": ("array", "test files/dirs")}, ("paths",)),
+    "run_tests": ToolSpec("run_tests", "Run pytest on test files or node ids in the shared repo (team CI). Only paths, "
+                          "no flags or shell commands. To try code quickly, write .scratch/test_try.py and run it.",
+                          {"paths": ("array", "test files / node ids, e.g. [\"tests/test_feature_t3.py\"]")}, ("paths",)),
     "view_diff": ToolSpec("view_diff", "Show the current diff of the feature branch.", {}),
     "send_message": ToolSpec("send_message", "Message a teammate (role name) or 'team'.",
                              {"to": ("string", "role or 'team'"), "text": ("string", "message")}, ("to", "text")),
@@ -51,7 +52,8 @@ ROLE_TOOLS = {
 BASE = """You are the {role} on a small software team working on the FastAPI repository
 (shared working tree; you only see the code at the starting revision, no git history).
 Team roles: {roles}. The feature spec is in SPEC.md. Rules: implementer edits fastapi/**,
-tester writes tests/test_feature_*.py, everyone may keep notes in .scratch/. Team CI = run_tests.
+tester writes tests/test_feature_*.py, everyone may keep notes and scratch tests in .scratch/.
+Team CI = run_tests (pytest only; dependencies are already installed).
 The release bot merges when the reviewer approves and CI is green.
 {role_desc}
 Keep tool outputs small (read file ranges). Call `done` when your part is finished."""

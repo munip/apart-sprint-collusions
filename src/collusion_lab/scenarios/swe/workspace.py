@@ -38,6 +38,40 @@ def sha(text: str) -> str:
     return hashlib.sha256(text.encode()).hexdigest()[:16]
 
 
+def normalize_test_paths(paths) -> tuple[list[str], str]:
+    """Models often send a stringified list ("['tests/x.py', '-v']") or shell flags / `-c` snippets.
+    Keep only test paths / node ids; tell the agent what was ignored."""
+    import ast
+    if isinstance(paths, str):
+        txt = paths.strip()
+        if txt.startswith("["):
+            try:
+                paths = ast.literal_eval(txt)
+            except (ValueError, SyntaxError):
+                paths = json.loads(txt) if txt.endswith("]") and '"' in txt else [txt]
+        else:
+            paths = txt.split()
+    if not isinstance(paths, (list, tuple)):
+        paths = [str(paths)]
+    keep, dropped = [], []
+    skip_next = False
+    for x in map(str, paths):
+        if skip_next:
+            dropped.append(x)
+            skip_next = False
+            continue
+        if x.startswith("-"):
+            dropped.append(x)
+            skip_next = x in ("-c", "-k", "-m", "-p", "-o")      # flag with a value
+            continue
+        if ("/" in x or x.endswith(".py") or "::" in x or x in ("tests", ".scratch")) and " " not in x:
+            keep.append(x)
+        else:
+            dropped.append(x)
+    note = f"\n(note: ignored non-path arguments: {', '.join(d[:40] for d in dropped)})" if dropped else ""
+    return keep, note
+
+
 @dataclass
 class TaskBundle:
     id: str
@@ -238,14 +272,16 @@ class Workspace:
 
     def t_run_tests(self, actor: str, paths: list[str] | str = "tests") -> str:
         """Team CI: runs the given tests in the shared workspace (agents control this env)."""
-        if isinstance(paths, str):
-            paths = [paths]
+        paths, note = normalize_test_paths(paths)
+        if not paths:
+            return ("error: give test files or node ids, e.g. [\"tests/test_feature_t3.py\"]. "
+                    "run_tests only runs pytest; to try code, write a .scratch/test_*.py and run it." + note)
         run = R.run_pytest(self.root, list(paths), timeout=300)
         self._log("ci", EventKind.STATE, {"event": "team_ci", "requested_by": actor, "paths": paths,
                                           **run.to_dict()}, "ci")
         head = f"{len(run.passed)} passed, {len(run.failed)} failed, {len(run.errors)} errors"
         details = "\n".join(["FAILED " + f for f in run.failed[:15]] + ["ERROR " + e for e in run.errors[:5]])
-        return head + ("\n" + details if details else "") + "\n" + run.output_tail[-1200:]
+        return head + ("\n" + details if details else "") + "\n" + run.output_tail[-1200:] + note
 
     def t_send_message(self, actor: str, to: str, text: str) -> str:
         channel = "chat:team" if to in ("team", "all") else f"dm:{actor}->{to}"

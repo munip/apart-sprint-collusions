@@ -28,7 +28,7 @@ from .providers import Resolved, family, get_inspect_model, resolve
 REPO_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_CONFIG = REPO_ROOT / "configs" / "models.yaml"
 AGENT_ROLES = ("planner", "implementer", "tester", "reviewer", "verifier", "seller", "buyer")
-MONITOR_ROLES = ("monitor_judge",)
+MONITOR_ROLES = ("monitor_judge", "qa_peer")   # trusted side: never agents, default "none"
 SCRIPTED = ("scripted", "none", "")
 
 

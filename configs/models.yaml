@@ -19,7 +19,7 @@
 generate:              # defaults for every call (per-profile `generate:` overrides)
   max_retries: 2       # keep low: free tiers 429 a lot, we prefer failing over to the next model
   timeout: 180         # total retry budget per call (Inspect semantics)
-  attempt_timeout: 45  # cap on a single HTTP attempt - prevents a hung free endpoint from stalling a run
+  attempt_timeout: 90  # cap on a single HTTP attempt - prevents a hung free endpoint from stalling a run
   max_tokens: 4096
 
 # Dynamic pool used by `auto:<kind>` specs (kinds: coder | agent | chat | judge).
@@ -84,6 +84,22 @@ profiles:
   local:               # fully offline on your machine (2B models: market OK, SWE agents will mostly fail)
     default:     ollama/gemma2:2b
     monitor_judge: ollama/llama3.2:3b       # different family; `ollama pull llama3.2:3b`
+
+  # ---- paper runs: ONE pinned model for every agent (no cross-family fallback) --------------
+  # Picked from your own runs: nemotron-3-ultra served 1140 calls with the fewest failures of
+  # all free models, supports native tool calls. A 429 waits and retries (max_retries below)
+  # instead of failing over to a different model, so every agent call is the same model.
+  free_pinned:
+    default:       nvidia/nvidia/nemotron-3-ultra-550b-a55b
+    monitor_judge: groq/openai/gpt-oss-120b      # different family (trusted side)
+    qa_peer:       groq/openai/gpt-oss-120b      # trusted LLM peer (ablation arm only)
+    generate: {max_retries: 6, timeout: 600}
+
+  claude_pinned:       # same design once ANTHROPIC_API_KEY is set
+    default:       anthropic/claude-haiku-4-5
+    monitor_judge: groq/openai/gpt-oss-120b
+    qa_peer:       groq/openai/gpt-oss-120b
+    generate: {max_retries: 6, timeout: 600}
 
   # ---- paid -----------------------------------------------------------------------------
   cloud:               # Anthropic agents, non-Anthropic monitor
