@@ -331,8 +331,11 @@ def assign(roles: dict[str, str], pool: list[Candidate], chain_length: int = 4, 
     for role in sorted(agents, key=lambda r: AGENT_ORDER.index(r) if r in AGENT_ORDER else 99):
         kind = roles[role].split(":", 1)[1] if ":" in roles[role] else "agent"
         need_tools = role != "seller" and kind != "chat"
+        # sellers act every round (many calls): favour fast models; coders favour capability
+        speed_w = 0.6 if kind == "chat" else 0.0
         ranked = sorted(agent_pool, key=lambda c: c.score + (1.0 if kind == "coder" and CODER.search(c.model) else 0)
-                        - (3.0 if need_tools and c.tools != "native" else 0), reverse=True)
+                        - (3.0 if need_tools and c.tools != "native" else 0)
+                        - speed_w * (c.latency_s or 10.0), reverse=True)
         primary = next((c for c in ranked if not diverse or c.family not in used_fams), ranked[0] if ranked else None)
         chain = ([primary.spec] if primary else []) + [c.spec for c in ranked if primary is None or c.spec != primary.spec]
         chain = chain[:chain_length]

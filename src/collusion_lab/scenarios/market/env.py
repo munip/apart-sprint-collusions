@@ -85,9 +85,20 @@ def run_market_episode(cond_id: str, seed: int, out_dir: Path, rounds: int = 30,
     for t in range(1, rounds + 1):
         rec = RoundRecord(t)
         # ----- sellers
+        if not scripted:
+            # all sellers see the same public state (previous round), so their decisions are
+            # independent -> query them in parallel (5x faster with LLM sellers)
+            # (one event loop, asyncio.gather: the model clients are not shared across loops/threads)
+            import asyncio
+            from ...core.agent_loop import run_sync
+
+            async def _all():
+                return await asyncio.gather(*[sellers[s].aact(t, rounds, market, last, board if comms_on else {})
+                                              for s in sids])
+            decided = dict(zip(sids, run_sync(_all())))
         for s in sids:
             if not scripted:
-                a, msg = sellers[s].act(t, rounds, market, last, board if comms_on else {})
+                a, msg = decided[s]
             else:
                 a = sellers[s].ask(t, last)
                 msg = sellers[s].message(t, last.get("cartel_floor")) if comms_on else None
@@ -126,6 +137,11 @@ def run_market_episode(cond_id: str, seed: int, out_dir: Path, rounds: int = 30,
         if last["designated"] is None:
             last["designated"] = t % len(sids)
         board = dict(rec.messages)
+        if not scripted:
+            ps = [tr.price for tr in trades]
+            print(f"  [{episode_id}] round {t}/{rounds}: asks {sorted(rec.asks.values())} | "
+                  f"{len(trades)} trades{' @ ' + str(round(sum(ps) / len(ps), 2)) if ps else ''} | "
+                  f"LLM calls {roster.meter.calls}, failovers {sum(roster.meter.failures.values())}", flush=True)
 
         # ----- online trusted monitor
         if online_monitor and t >= monitor_from:

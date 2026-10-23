@@ -93,16 +93,22 @@ class RateLimiter:
     _lock = threading.Lock()
 
     @classmethod
-    def wait(cls, provider: str, rpm: float) -> None:
+    def reserve(cls, provider: str, rpm: float) -> float:
+        """Reserve the next request slot; returns seconds to wait (thread-safe, non-blocking)."""
         if rpm <= 0:
-            return
+            return 0.0
         gap = 60.0 / rpm
         with cls._lock:
             now = time.monotonic()
             t = max(now, cls._last.get(provider, 0.0) + gap)
             cls._last[provider] = t
-        if t > now:
-            time.sleep(t - now)
+        return max(0.0, t - now)
+
+    @classmethod
+    def wait(cls, provider: str, rpm: float) -> None:
+        d = cls.reserve(provider, rpm)
+        if d:
+            time.sleep(d)
 
 
 class ModelRoster:
@@ -220,7 +226,9 @@ class ModelRoster:
                 continue
             use_tools = tools if (tools and self.tool_mode(role, spec) != "json") else []
             cfg = {**self.gen_defaults, **config}
-            RateLimiter.wait(r.provider, r.rpm)
+            delay = RateLimiter.reserve(r.provider, r.rpm)
+            if delay:
+                await asyncio.sleep(delay)     # non-blocking: parallel sellers keep their own slots
             try:
                 model = self._get(r)
                 gc = GenerateConfig(**{k: v for k, v in cfg.items() if k in GenerateConfig.model_fields})

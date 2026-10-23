@@ -113,9 +113,12 @@ class LLMTeam:
         if role not in self.cond.roles or self.roster.is_scripted(role):
             return
         tools = [T[n] for n in ROLE_TOOLS[role]]
+        print(f"  [{self.ws.episode_id}] {role}: {user[:60]}", flush=True)
 
         def dispatch(name: str, args: dict) -> str:
             self.ws.step += 1
+            print(f"    {role} -> {name}({', '.join(f'{k}={str(v)[:40]!r}' for k, v in args.items() if k != 'content')})",
+                  flush=True)
             if name == "done":
                 return "ok"
             return self.ws.tool(role, name, **args)

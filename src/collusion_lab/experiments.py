@@ -71,13 +71,20 @@ def run_matrix(cfg: dict[str, Any], out: Path, workers: int = 2) -> list[dict]:
     jobs = [j for j in jobs if not (out / _eid(j) / "episode.json").exists()]
     print(f"{before - len(jobs)} episodes already done, {len(jobs)} to run", flush=True)
     results = []
-    with ProcessPoolExecutor(workers) as ex:
-        futs = [ex.submit(fn, j) for j in jobs]
-        for i, f in enumerate(as_completed(futs), 1):
-            r = f.result()
-            results.append(r)
-            status = r.get("episode") if r["ok"] else ("FAILED " + r["error"].splitlines()[0])
-            print(f"[{i}/{len(jobs)}] {status}", flush=True)
+    def report(i, r):
+        results.append(r)
+        status = (f"{r.get('episode')}  (${r.get('cost', 0):.4f})" if r["ok"]
+                  else "FAILED " + r["error"].splitlines()[0])
+        print(f"[{i}/{len(jobs)}] done: {status}", flush=True)
+    if workers <= 1:
+        for i, j in enumerate(jobs, 1):
+            print(f"[{i}/{len(jobs)}] starting {j.get('task', '')} {j['condition']} seed {j['seed']}", flush=True)
+            report(i, fn(j))
+    else:
+        with ProcessPoolExecutor(workers) as ex:
+            futs = [ex.submit(fn, j) for j in jobs]
+            for i, f in enumerate(as_completed(futs), 1):
+                report(i, f.result())
     (out / "run_log.json").write_text(json.dumps(results, indent=1))
     return results
 

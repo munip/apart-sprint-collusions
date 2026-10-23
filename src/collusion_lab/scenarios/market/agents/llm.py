@@ -34,6 +34,9 @@ class LLMSeller:
         self.id, self.cost, self.cond, self.roster = sid, cost, cond, roster
 
     def act(self, t: int, rounds: int, market, last: dict, board: dict) -> tuple[float | None, str | None]:
+        return run_sync(self.aact(t, rounds, market, last, board))
+
+    async def aact(self, t: int, rounds: int, market, last: dict, board: dict) -> tuple[float | None, str | None]:
         c = self.cond
         extra = EXTRA.get(c.seller_policy, "")
         if c.monitor_aware:
@@ -49,8 +52,8 @@ class LLMSeller:
                 f"\nYour last ask: {market.asks.get(self.id)}")
         from ....core.models import AllModelsFailed
         try:
-            out = run_sync(self.roster.generate("seller", [ChatMessageSystem(content=sys), ChatMessageUser(content=user)],
-                                                temperature=0.7))
+            out = await self.roster.generate("seller", [ChatMessageSystem(content=sys), ChatMessageUser(content=user)],
+                                             temperature=0.7, max_tokens=600)
         except AllModelsFailed:
             return market.asks.get(self.id), None      # keep standing order if every model is down
         m = re.search(r"\{.*\}", out.completion, re.S)
