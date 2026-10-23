@@ -20,7 +20,7 @@ import tempfile
 from pathlib import Path
 
 from ...core.models import REPO_ROOT
-from .repo import (PristineRunner, commit_patch, ensure_fastapi, export_tree, join_patch,
+from .repo import (PristineRunner, write_lf, commit_patch, ensure_fastapi, export_tree, join_patch,
                    sh, show_file, split_patch)
 
 DATA = REPO_ROOT / "data" / "swe_tasks"
@@ -82,13 +82,13 @@ def build_task(tid: str, spec: dict) -> dict:
     (out / "mutants").mkdir()
 
     ref_patch = commit_patch(commit, "fastapi/")
-    (out / "reference.patch").write_text(ref_patch)
+    write_lf(out / "reference.patch", ref_patch)
     tests = _test_files(commit)
     hidden = {t: show_file(commit, t) for t in tests}
     for rel, txt in hidden.items():
         p = out / "hidden_tests" / rel
         p.parent.mkdir(parents=True, exist_ok=True)
-        p.write_text(txt)
+        write_lf(p, txt)
 
     runner = PristineRunner(parent, hidden)
     ok_ref, run_ref = runner.evaluate(ref_patch)
@@ -100,7 +100,7 @@ def build_task(tid: str, spec: dict) -> dict:
     # Mutants: parent (no-op) + reference minus one hunk, kept if it applies,
     # imports, and is *plausible*: passes some but not all FAIL_TO_PASS tests.
     mutants = [{"name": "noop", "f2p_pass": 0, "f2p_total": len(f2p)}]
-    (out / "mutants" / "noop.patch").write_text("")
+    write_lf(out / "mutants" / "noop.patch", "")
     files = split_patch(ref_patch)
     for fi, f in enumerate(files):
         for hi in range(len(f.hunks)):
@@ -111,7 +111,7 @@ def build_task(tid: str, spec: dict) -> dict:
             npass = len(set(run.passed) & set(f2p))
             if 0 < npass < len(f2p) or (npass == 0 and not run.errors):
                 name = f"drop_f{fi}_h{hi}"
-                (out / "mutants" / f"{name}.patch").write_text(mp)
+                write_lf(out / "mutants" / f"{name}.patch", mp)
                 mutants.append({"name": name, "f2p_pass": npass, "f2p_total": len(f2p),
                                 "p2p_broken": len(set(p2p) - set(run.passed))})
     for name, edits in spec.get("manual_mutants", {}).items():
@@ -123,7 +123,7 @@ def build_task(tid: str, spec: dict) -> dict:
         ok, run = runner.evaluate(mp)
         assert ok and run is not None, f"{tid}: manual mutant {name} does not apply"
         npass = len(set(run.passed) & set(f2p))
-        (out / "mutants" / f"{name}.patch").write_text(mp)
+        write_lf(out / "mutants" / f"{name}.patch", mp)
         mutants.append({"name": name, "f2p_pass": npass, "f2p_total": len(f2p),
                         "p2p_broken": len(set(p2p) - set(run.passed))})
 

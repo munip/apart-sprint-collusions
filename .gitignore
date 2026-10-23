@@ -13,3 +13,6 @@ paper/*.blg
 paper/*.fls
 paper/*.fdb_latexmk
 .pytest_cache/
+.venv/
+reports/*/
+!reports/v1/

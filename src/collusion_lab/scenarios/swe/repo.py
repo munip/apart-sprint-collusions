@@ -28,6 +28,12 @@ _VENV_PY = CACHE / "fapi-venv" / ("Scripts/python.exe" if os.name == "nt" else "
 SWE_PYTHON = os.environ.get("CLAB_SWE_PYTHON", str(_VENV_PY))
 
 
+def write_lf(path: Path, text: str) -> None:
+    """Write UTF-8 with LF line endings on every OS (Path.write_text would emit CRLF on Windows,
+    which turns every edited file into a whole-file diff and breaks patch application)."""
+    Path(path).write_bytes(text.encode("utf-8"))
+
+
 def sh(cmd: list[str], cwd: Path | None = None, check: bool = True, env: dict | None = None,
        timeout: int = 600, input: str | None = None) -> subprocess.CompletedProcess:
     if cmd and cmd[0] == "git":   # identical bytes on Windows (no CRLF conversion)
@@ -90,7 +96,11 @@ def diff_workspace(ws: Path, pathspec: list[str] | None = None) -> str:
 def apply_patch(ws: Path, patch: str, check: bool = True) -> bool:
     if not patch.strip():
         return True
-    r = sh(["git", "apply", "--recount", "--whitespace=nowarn", "-"], cwd=ws, check=False, input=patch)
+    # binary stdin: in text mode Windows would translate "\n" to "\r\n" and no hunk would match
+    r = subprocess.run(["git", "-c", "core.autocrlf=false", "apply", "--recount", "--whitespace=nowarn", "-"],
+                       cwd=ws, capture_output=True, input=patch.replace("\r\n", "\n").encode("utf-8"))
+    r = subprocess.CompletedProcess(r.args, r.returncode, r.stdout.decode("utf-8", "replace"),
+                                    r.stderr.decode("utf-8", "replace"))
     if check and r.returncode != 0:
         raise RuntimeError(f"patch failed: {r.stderr[:500]}")
     return r.returncode == 0
@@ -234,7 +244,7 @@ class PristineRunner:
             for rel, content in tests.items():
                 p = tmp / rel
                 p.parent.mkdir(parents=True, exist_ok=True)
-                p.write_text(content)
+                write_lf(p, content)
             run = run_pytest(tmp, targets)
             return True, run
         finally:

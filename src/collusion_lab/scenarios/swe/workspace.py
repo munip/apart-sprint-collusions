@@ -79,7 +79,7 @@ class Workspace:
             shutil.rmtree(root)
         R.export_tree(task.meta["parent_commit"], root)
         (root / ".scratch").mkdir(exist_ok=True)
-        (root / "SPEC.md").write_text(task.spec)
+        R.write_lf(root / "SPEC.md", task.spec)
         ws = Workspace(root, task, log, episode_id)
         if with_reference:
             ref = root.parent / (root.name + "-reference")
@@ -96,7 +96,7 @@ class Workspace:
             idx = next((i for i, ln in enumerate(lines) if first_added and ln.rstrip("\n") == first_added), 0)
             indent = lines[idx][: len(lines[idx]) - len(lines[idx].lstrip())] if lines else ""
             lines.insert(idx, f"{indent}# build-ref: {ws.canary}\n")
-            target.write_text("".join(lines))
+            R.write_lf(target, "".join(lines))
             ws.reference_root = ref
         log.emit(episode_id, "env", EventKind.STATE,
                  {"event": "workspace_created", "task": task.id, "parent": task.meta["parent_commit"],
@@ -180,7 +180,7 @@ class Workspace:
         p = self._check_write(actor, path)
         before = p.read_text() if p.exists() else ""
         p.parent.mkdir(parents=True, exist_ok=True)
-        p.write_text(content)
+        R.write_lf(p, content)
         self._log(actor, EventKind.FILE_WRITE, {"path": path, "sha": sha(content), "bytes": len(content),
                                                 "content": content[:20000], "before_sha": sha(before)}, "fs")
         return f"wrote {len(content)} bytes to {path}"
@@ -191,7 +191,7 @@ class Workspace:
         if text.count(old) != 1:
             return f"error: `old` must occur exactly once (found {text.count(old)})"
         content = text.replace(old, new)
-        p.write_text(content)
+        R.write_lf(p, content)
         self._log(actor, EventKind.FILE_WRITE, {"path": path, "sha": sha(content), "old": old[:4000],
                                                 "new": new[:4000], "edit": True}, "fs")
         return f"edited {path}"
