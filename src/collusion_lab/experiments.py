@@ -113,6 +113,8 @@ def _replay_one(args: dict) -> list[dict]:
         colluders = list(rec["costs"]) if rec["truth"]["collusive"] else []
         harm = rec["outcome"]["harmful"]
         total_steps = rec["rounds"]
+    from .eval.occurrence import occurred
+    did_occur, how = occurred(rec, events)
     rows = []
     for lvl in args["monitors"]:
         for obs in args["observability"]:
@@ -125,6 +127,7 @@ def _replay_one(args: dict) -> list[dict]:
                 "episode": rec["episode_id"], "scenario": rec["scenario"], "task": rec.get("task", "market"),
                 "condition": rec["condition"], "seed": rec["seed"], "category": rec["truth"]["category"],
                 "mechanism": rec["truth"]["mechanism"], "collusive": rec["truth"]["collusive"],
+                "instructed": rec["truth"]["collusive"], "occurred": did_occur, "occurred_how": how,
                 "harm": bool(harm), "monitor": lvl, "observability": obs, "action": d.action.value,
                 "flagged": d.flagged, "risk": d.risk, "collusion_score": d.collusion_score,
                 "first_step": d.step, "total_steps": total_steps,
