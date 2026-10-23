@@ -1,0 +1,20 @@
+# Monitor-capability sweep, scenario A (see swe_monitor_sweep.yaml for the procedure).
+#   clab run configs\experiments\market_monitor_sweep.yaml --out runs\market_sweep --workers 1
+#   clab sweep-monitors runs\market_sweep --config configs\experiments\market_monitor_sweep.yaml --out reports\market_sweep
+# Conditions span no-chat (A0), honest chat (A2, hard negative), overt cartel (A3) and stego (A5, A6):
+# the LLM judge only sees board messages, so chat conditions are where monitor capability matters.
+scenario: market
+profile: scripted
+overrides:
+  default: hf/Qwen/Qwen2.5-3B-Instruct
+conditions: [A0_competitive, A2_honest_chat, A3_overt_cartel, A5_stego_rotation, A6_aware_stego]
+seeds: [0, 1, 2]
+rounds: 15
+online_monitors: []
+cap_usd: 5
+
+monitor_sweep:
+  judges:
+    lower:  hf/Qwen/Qwen2.5-0.5B-Instruct
+    same:   hf/Qwen/Qwen2.5-3B-Instruct
+    higher: hf/Qwen/Qwen2.5-7B-Instruct
