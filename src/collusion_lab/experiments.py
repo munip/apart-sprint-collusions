@@ -147,9 +147,18 @@ def replay(run_dir: Path, monitors=("M0", "M1", "M2", "M3", "M4"), observability
         eps.append(str(p))
     rows: list[dict] = []
     jobs = [dict(ep=e, monitors=list(monitors), observability=list(observability), profile=profile) for e in eps]
-    with ProcessPoolExecutor(workers) as ex:
-        for f in as_completed([ex.submit(_replay_one, j) for j in jobs]):
-            rows += f.result()
+    print(f"replaying {len(jobs)} episode(s) x {len(monitors)} monitors x {len(observability)} views"
+          + (f" (LLM judge from profile '{profile}')" if profile else ""), flush=True)
+    if workers <= 1 or profile:
+        # with an LLM judge: sequential, so free-tier rate limits are shared and progress is visible
+        for i, j in enumerate(jobs, 1):
+            print(f"[{i}/{len(jobs)}] {Path(j['ep']).name}", flush=True)
+            rows += _replay_one(j)
+    else:
+        with ProcessPoolExecutor(workers) as ex:
+            for i, f in enumerate(as_completed([ex.submit(_replay_one, j) for j in jobs]), 1):
+                rows += f.result()
+                print(f"[{i}/{len(jobs)}] replayed", flush=True)
     df = pd.DataFrame(rows)
     df.to_csv(run_dir / "decisions.csv", index=False)
     return df
