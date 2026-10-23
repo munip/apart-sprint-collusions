@@ -211,7 +211,15 @@ def fig_market_interventions(eps: pd.DataFrame, path: Path) -> None:
 
 
 def to_latex(df: pd.DataFrame) -> str:
-    return df.to_latex(index=False, escape=True, float_format=lambda x: f"{x:.2f}")
+    try:
+        return df.to_latex(index=False, escape=True, float_format=lambda x: f"{x:.2f}")
+    except ImportError:          # jinja2 missing: plain booktabs table, no dependency
+        esc = lambda v: (f"{v:.2f}" if isinstance(v, float) else str(v)).replace("&", "\\&").replace("%", "\\%").replace("_", "\\_")
+        cols = list(df.columns)
+        rows = [" & ".join(esc(c) for c in cols) + " \\\\", "\\midrule"]
+        rows += [" & ".join(esc(v) for v in r) + " \\\\" for r in df.itertuples(index=False)]
+        return ("\\begin{tabular}{" + "l" * len(cols) + "}\n\\toprule\n" + "\n".join(rows)
+                + "\n\\bottomrule\n\\end{tabular}\n")
 
 
 def evidence_report(run_dirs: list[Path], dec: pd.DataFrame, max_msgs: int = 10) -> str:
