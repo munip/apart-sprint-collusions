@@ -58,6 +58,7 @@ providers:
   novita:      {kind: openai_compat, base_url: https://api.novita.ai/v3/openai, api_key_env: [NOVITA_API_KEY], rpm: 20, tools: native, verify: true}
   ovh:         {kind: openai_compat, base_url: https://oai.endpoints.kepler.ai.cloud.ovh.net/v1, api_key_env: [OVH_AI_ENDPOINTS_ACCESS_TOKEN], rpm: 20, tools: auto, verify: true}
   llm7:        {kind: openai_compat, base_url: https://api.llm7.io/v1, api_key_env: [LLM7_API_KEY], api_key: unused, rpm: 20, tools: auto, verify: true}
+  pollinations: {kind: openai_compat, base_url: https://text.pollinations.ai/openai, api_key_env: [POLLINATIONS_API_KEY], api_key: anonymous, rpm: 12, tools: auto, verify: true}
   ollama_cloud: {kind: openai_compat, base_url: https://ollama.com/v1, api_key_env: [OLLAMA_API_KEY], rpm: 20, tools: auto, verify: true}
 
   # ---- routers / gateways ------------------------------------------------------------

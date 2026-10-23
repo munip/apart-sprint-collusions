@@ -21,9 +21,37 @@ generate:              # defaults for every call (per-profile `generate:` overri
   timeout: 180
   max_tokens: 4096
 
+# Dynamic pool used by `auto:<kind>` specs (kinds: coder | agent | chat | judge).
+# Keys come from free-coding-models' config (apiKeys) and/or .env; candidates from FCM router sets,
+# each keyed provider's live /models list, `free-coding-models --json`, and local Ollama.
+pool:
+  sources: [fcm_sets, fcm_cli, provider_catalogs, ollama]
+  max_probe: 24          # how many candidates get a live text + tool-call probe
+  concurrency: 6
+  timeout: 30
+  ttl_hours: 6           # cache in .cache/model_pool.json; `clab pool discover --refresh` to redo
+  chain_length: 4        # discovered models per role before the last-resort tail
+  diverse_roles: true    # give each agent role a different primary family when possible
+  last_resort: [fcm/fcm, ollama]   # FCM router (if running), then every local Ollama model
+
 profiles:
   scripted:            # $0 deterministic agents, no network
     default: scripted
+
+  # ---- dynamic: whatever free model your FCM keys can reach right now -------------------
+  fcm_auto:
+    default: auto:agent
+    implementer: auto:coder
+    tester: auto:coder
+    seller: auto:chat
+    monitor_judge: auto:judge       # pinned to a family that no agent chain uses
+
+  fcm_auto_local_monitor:           # dynamic free agents, local Ollama trusted monitor
+    default: auto:agent
+    implementer: auto:coder
+    tester: auto:coder
+    seller: auto:chat
+    monitor_judge: [ollama/gemma2:2b]
 
   # ---- free tiers (keys via free-coding-models / .env) --------------------------------
   free:                # heterogeneous team: every role a different family; monitor = Gemini (not used by agents)

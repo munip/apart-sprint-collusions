@@ -115,9 +115,23 @@ class ModelRoster:
         self.allow_shared_family = bool(prof.pop("allow_shared_family", False))
         self.gen_defaults: dict[str, Any] = dict(cfg.get("generate", {}))
         self.gen_defaults.update(prof.pop("generate", {}) or {})
+        prof_pool = prof.pop("pool", None)
         self.mapping: dict[str, Any] = prof
         for k, v in (overrides or {}).items():
             self.mapping[k] = [x.strip() for x in v.split(",")] if "," in v else v
+        # FCM keys -> env, then expand dynamic `auto:*` roles from the discovered free-model pool
+        from .pool import expand_auto, inject_fcm_keys
+        inject_fcm_keys()
+        self.pool_cfg: dict[str, Any] = dict(cfg.get("pool", {}))
+        self.pool_cfg.update(prof_pool or {})
+        expanded = expand_auto(self.mapping, self.pool_cfg)
+        if expanded:
+            default_auto = isinstance(self.mapping.get("default"), str) and self.mapping["default"].startswith("auto")
+            self.mapping.update(expanded)
+            if default_auto:
+                self.mapping["default"] = expanded.get("planner") or next(
+                    (v for k, v in expanded.items() if k != "monitor_judge"), ["scripted"])
+        self.auto_expanded = bool(expanded)
         cap = cap_usd if cap_usd is not None else cfg.get("budget", {}).get("hard_cap_usd", 25.0)
         self.meter = CostMeter(cfg.get("prices", {}), cap)
         self._models: dict[str, Any] = {}

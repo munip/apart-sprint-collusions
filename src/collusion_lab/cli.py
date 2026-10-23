@@ -29,6 +29,8 @@ def _load_env() -> None:
             load_dotenv(p, override=False)
     if os.name == "nt":
         os.environ.setdefault("PYTHONUTF8", "1")
+    from .core.pool import inject_fcm_keys
+    inject_fcm_keys()          # keys configured in free-coding-models become usable without .env
 
 
 def _overrides(items: list[str] | None) -> dict[str, str]:
@@ -112,6 +114,18 @@ def main(argv: list[str] | None = None) -> None:
     chk.add_argument("--model", action="append", help="explicit spec(s) to probe")
     chk.add_argument("--timeout", type=int, default=45)
 
+    fc = sub.add_parser("fcm", help="free-coding-models integration")
+    fcs = fc.add_subparsers(dest="sub", required=True)
+    fcs.add_parser("status")
+
+    pl = sub.add_parser("pool", help="dynamic free-model pool")
+    pls = pl.add_subparsers(dest="sub", required=True)
+    pd = pls.add_parser("discover")
+    pd.add_argument("--refresh", action="store_true")
+    pd.add_argument("--max-probe", type=int)
+    pa = pls.add_parser("assign")
+    pa.add_argument("--profile", default="fcm_auto")
+
     md = sub.add_parser("models")
     mds = md.add_subparsers(dest="sub", required=True)
     mc = mds.add_parser("check")
@@ -170,6 +184,39 @@ def main(argv: list[str] | None = None) -> None:
                          if (only is None and p in keyed) or (only and p in only)]
             print(f"probing {len(specs)} model(s)...")
             print(_table(probe(specs, a.timeout), ["spec", "family", "text", "tools", "latency_s", "served_by", "error"]))
+    elif a.cmd == "fcm":
+        from .core import pool as PL
+        path = PL.fcm_config_path()
+        print(f"FCM config: {path or 'NOT FOUND (set FCM_CONFIG or copy ~/.free-coding-models.json)'}")
+        cfg = PL.load_fcm_config()
+        keys = PL.fcm_keys(cfg)
+        from .core.providers import registry
+        reg = registry()["providers"]
+        for prov, k in keys.items():
+            print(f"  key  {prov:14s} {_mask(k)}  {'usable' if prov in reg else 'not in configs/providers.yaml (ignored)'}")
+        for name, models in PL.fcm_router_sets(cfg).items():
+            print(f"  set  {name}: " + ", ".join(f"{m['provider']}/{m['model']}" for m in models))
+        pp = ((cfg.get("router") or {}).get("prePrompt") or {})
+        if pp.get("enabled"):
+            print("  NOTE router prePrompt is ENABLED: the FCM router injects its own system prompt into every request."
+                  "\n       clab calls providers directly (unaffected); only the fcm/fcm last-resort tail is affected."
+                  "\n       For clean experiments disable it in free-coding-models settings.")
+        print(f"  router http://localhost:19280 : {'UP' if PL.fcm_router_up() else 'down (start: free-coding-models --daemon-bg)'}")
+        om = PL.ollama_models()
+        print(f"  ollama: {', '.join(om) if om else 'not reachable (ollama serve)'}")
+    elif a.cmd == "pool":
+        from .core import pool as PL
+        if a.sub == "discover":
+            import yaml as _y
+            pc = (_y.safe_load((REPO / "configs" / "models.yaml").read_text(encoding="utf-8")).get("pool") or {})
+            cands = PL.discover(pc.get("sources"), a.max_probe or pc.get("max_probe", 24), pc.get("concurrency", 6),
+                                pc.get("timeout", 30), pc.get("ttl_hours", 6), refresh=a.refresh)
+            rows = [{"spec": c.spec, "family": c.family, "source": c.source, "ok": c.ok, "tools": c.tools,
+                     "latency_s": c.latency_s, "score": c.score, "error": c.error[:60]} for c in cands]
+            print(_table(rows, ["spec", "family", "source", "ok", "tools", "latency_s", "score", "error"]))
+            print(f"\n{sum(1 for c in cands if c.ok)} usable models cached in {PL.CACHE_FILE}")
+        else:
+            sys.exit(cmd_models_check(a.profile, {}, probe=False))
     elif a.cmd == "models":
         sys.exit(cmd_models_check(a.profile, _overrides(a.role), a.probe))
     elif a.cmd == "build-tasks":
@@ -193,6 +240,15 @@ def main(argv: list[str] | None = None) -> None:
             if rc == 1 and not a.allow_shared_family:
                 sys.exit("refusing to run: monitor shares a model family with the agents "
                          "(pass --allow-shared-family for the ablation)")
+        if cfg.get("profile", "scripted") != "scripted":
+            # resolve dynamic (auto:) chains ONCE here and hand explicit chains to the workers
+            import json as _j
+            from .core.models import ModelRoster
+            ro = ModelRoster(cfg["profile"], cfg.get("overrides") or {})
+            if ro.auto_expanded:
+                cfg["overrides"] = {k: ",".join(v) if isinstance(v, list) else v for k, v in ro.mapping.items()}
+            Path(a.out).mkdir(parents=True, exist_ok=True)
+            (Path(a.out) / "model_assignment.json").write_text(_j.dumps(ro.describe(), indent=1), encoding="utf-8")
         run_matrix(cfg, Path(a.out), a.workers)
         episodes_table(Path(a.out))
     elif a.cmd == "replay":

@@ -74,6 +74,43 @@ clab providers check --model ollama/gemma2:2b --model fcm/fcm
 `json-only` means the harness will drive tools through a JSON prompt protocol. That switch is
 automatic, which is how `gemma2:2b` can still act as an agent.
 
+## 3b. Use any free model your free-coding-models keys can reach (recommended)
+
+You don't need to hard-code model IDs. Profiles `fcm_auto` and `fcm_auto_local_monitor` use
+`auto:` specs that are resolved at start-up:
+
+1. **Keys:** read from free-coding-models' config. The harness looks in this order: `FCM_CONFIG`,
+   `~/.free-coding-models.json`, then **`C:\collusions-claude\.free-coding-models.json`** (the copy you
+   placed next to the repo). Keys are exported in memory only; nothing is written to disk.
+2. **Discovery:** candidates come from the FCM router sets in that config, each keyed provider's
+   live `/models` list (OpenRouter limited to `:free` models with tool support),
+   `free-coding-models --json` when the CLI is on PATH, and your local Ollama models.
+3. **Probe:** each candidate gets one text call and one tool call (capped by `pool.max_probe`). The
+   result is cached for 6 hours in `.cache\model_pool.json`.
+4. **Assignment:** each agent role gets a ranked fallback chain, with different model families as
+   primaries where possible. The **trusted monitor gets a family that no agent chain contains**.
+   Every agent chain then ends with the FCM router (`fcm/fcm`, if running) and all local Ollama
+   models.
+
+```powershell
+clab fcm status                       # keys found (masked), router sets, router/Ollama health, pre-prompt warning
+clab pool discover --refresh          # discover + probe; prints the ranked pool
+clab pool assign --profile fcm_auto   # shows the per-role chains and the monitor/agent family check
+clab run configs\experiments\market_smoke_free.yaml --out runs\market_auto --profile fcm_auto --workers 1
+clab run configs\experiments\swe_smoke_free.yaml    --out runs\swe_auto    --profile fcm_auto --workers 1
+clab replay runs\swe_auto --profile fcm_auto      # M2 judge = the auto-chosen monitor model
+```
+
+Each run writes `runs\<name>\model_assignment.json`, recording the exact chains used, so the
+paper can say which models were used. Use `fcm_auto_local_monitor` to keep the monitor on your
+local `ollama/gemma2:2b`; its family is then excluded from every agent chain.
+
+> **The FCM router's pre-prompt is enabled in your config.** The router adds its own system prompt
+> ("You are free-coding-models, a free coding-model routing agent…") to every request. The pool
+> calls providers **directly** with your keys, so it is unaffected. Only the `fcm/fcm` last-resort
+> tail would be contaminated. For clean runs, disable the pre-prompt in free-coding-models'
+> settings, or remove `fcm/fcm` from `pool.last_resort` in `configs\models.yaml`.
+
 ## 4. Start local services (optional)
 
 ```powershell
