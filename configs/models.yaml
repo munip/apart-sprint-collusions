@@ -18,7 +18,8 @@
 
 generate:              # defaults for every call (per-profile `generate:` overrides)
   max_retries: 2       # keep low: free tiers 429 a lot, we prefer failing over to the next model
-  timeout: 180
+  timeout: 180         # total retry budget per call (Inspect semantics)
+  attempt_timeout: 90  # cap on a single HTTP attempt - prevents a hung free endpoint from stalling a run
   max_tokens: 4096
 
 # Dynamic pool used by `auto:<kind>` specs (kinds: coder | agent | chat | judge).
@@ -28,7 +29,7 @@ pool:
   sources: [fcm_sets, fcm_cli, provider_catalogs, ollama]
   max_probe: 24          # how many candidates get a live text + tool-call probe
   concurrency: 6
-  timeout: 30
+  timeout: 25           # per probe call (text, then tool call); hard cap per model = 2*timeout+10 s
   ttl_hours: 6           # cache in .cache/model_pool.json; `clab pool discover --refresh` to redo
   chain_length: 4        # discovered models per role before the last-resort tail
   diverse_roles: true    # give each agent role a different primary family when possible

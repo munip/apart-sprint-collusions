@@ -12,6 +12,7 @@ the caller uses its scripted policy instead (roster.is_scripted).
 """
 from __future__ import annotations
 
+import asyncio
 import fnmatch
 import os
 import threading
@@ -222,7 +223,10 @@ class ModelRoster:
             RateLimiter.wait(r.provider, r.rpm)
             try:
                 model = self._get(r)
-                out = await model.generate(messages, tools=use_tools or [], config=GenerateConfig(**cfg))
+                gc = GenerateConfig(**{k: v for k, v in cfg.items() if k in GenerateConfig.model_fields})
+                # hard wall-clock guard on top of Inspect's retry budget: a stuck endpoint fails over
+                out = await asyncio.wait_for(model.generate(messages, tools=use_tools or [], config=gc),
+                                             timeout=float(cfg.get("timeout") or 180) + 30)
             except Exception as e:  # rate limit, quota, network, unsupported tools ...
                 msg = str(e)
                 if use_tools and r.tools in ("auto", "native") and _tools_unsupported(msg):
