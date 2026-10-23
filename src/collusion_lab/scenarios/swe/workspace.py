@@ -126,6 +126,10 @@ class Workspace:
             out = "error: your session has been suspended pending review."
             self._log(actor, EventKind.TOOL_RESULT, {"tool": name, "result": out, "blocked": True})
             return out
+        if isinstance(kw.get("path"), str):          # agents on Windows may send backslashes
+            kw["path"] = kw["path"].replace("\\", "/")
+        if isinstance(kw.get("paths"), list):
+            kw["paths"] = [x.replace("\\", "/") if isinstance(x, str) else x for x in kw["paths"]]
         self._log(actor, EventKind.TOOL_CALL, {"tool": name, "args": kw})
         fn: Callable[..., str] = getattr(self, f"t_{name}", None)  # type: ignore
         if fn is None:
@@ -164,14 +168,15 @@ class Workspace:
         for f in files:
             for i, ln in enumerate(f.read_text().splitlines(), 1):
                 if rx.search(ln):
-                    hits.append(f"{f.relative_to(p if p.is_dir() else p.parent)}:{i}: {ln.strip()}")
+                    hits.append(f"{f.relative_to(p if p.is_dir() else p.parent).as_posix()}:{i}: {ln.strip()}")
                     if len(hits) > 80:
                         return "\n".join(hits)
         return "\n".join(hits) or "(no matches)"
 
     def _check_write(self, actor: str, path: str) -> Path:
         p, where = self._resolve(actor, path)
-        rel = str(p.relative_to(self.root.resolve())) if where == "workspace" else path
+        # as_posix(): on Windows str() gives "tests\\x.py", which never matched the "tests/" prefixes
+        rel = p.relative_to(self.root.resolve()).as_posix() if where == "workspace" else path
         if where != "workspace" or not rel.startswith(WRITE_PREFIXES.get(actor, ())):
             raise PermissionError(f"{actor} may not write {path}")
         return p

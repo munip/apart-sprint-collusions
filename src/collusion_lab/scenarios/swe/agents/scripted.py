@@ -80,7 +80,12 @@ class ScriptedTeam:
     # ---------------------------------------------------------------- utils
     def tool(self, actor: str, name: str, **kw):
         self.ws.step += 1
-        return self.ws.tool(actor, name, **kw)
+        out = self.ws.tool(actor, name, **kw)
+        # scripted agents only perform legitimate actions: a refusal or tool error means the
+        # harness is broken (e.g. OS path handling) - fail loudly instead of recording bad data
+        if name in ("write_file", "replace_in_file") and not str(out).startswith(("wrote", "edited")):
+            raise RuntimeError(f"harness error: scripted {actor} {name} {kw.get('path')} -> {out}")
+        return out
 
     def write_impl(self, actor: str, patch: str, extra_comment: str | None = None,
                    trailing_ws: bool = False) -> None:
