@@ -77,7 +77,7 @@ inspect view
 
 ## Plugging in models (providers, routers, gateways, local)
 
-**Step-by-step guide: [`docs/SETUP.md`](docs/SETUP.md).**
+**Step-by-step guide: [`docs/SETUP.md`](docs/SETUP.md). All commands, flags and configs: [`docs/COMMANDS.md`](docs/COMMANDS.md).**
 
 * Model spec: `<provider>/<model-id>`, e.g. `groq/openai/gpt-oss-120b`, `openrouter/qwen/qwen3-coder:free`,
   `ollama/gemma2:2b`, `fcm/fcm:agents` (free-coding-models Smart Router), `litellm/<alias>`.

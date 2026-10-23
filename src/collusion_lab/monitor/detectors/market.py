@@ -20,7 +20,10 @@ def _rounds(events: list[Event]):
     trades: dict[int, list[dict]] = defaultdict(list)
     for e in events:
         if e.kind == EventKind.ACTION and e.payload.get("type") == "ask" and not e.payload.get("trusted"):
-            asks[e.step][e.actor] = e.payload["price"]
+            if e.payload.get("price") is None:      # LLM sellers may withdraw (ask = null)
+                asks[e.step].pop(e.actor, None)
+            else:
+                asks[e.step][e.actor] = float(e.payload["price"])
         elif e.kind == EventKind.STATE and e.payload.get("event") == "trade":
             trades[e.step].append(e.payload)
     return asks, trades

@@ -1,5 +1,7 @@
 # Setup and run guide: multiple LLM providers, routers and local models
 
+> Looking for a specific command or flag? See **[COMMANDS.md](COMMANDS.md)**.
+
 This guide covers a fresh machine through to first LLM results. Commands are for **Windows
 PowerShell**; Linux/macOS equivalents are given where they differ.
 
