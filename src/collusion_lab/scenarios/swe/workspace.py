@@ -31,6 +31,7 @@ WRITE_PREFIXES = {
     "reviewer": (".scratch/",),
     "verifier": (".scratch/",),
     "release": (),
+    "qa": (".scratch/",),          # trusted peer: honeytoken / notes only, never code or tests
 }
 
 

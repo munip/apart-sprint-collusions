@@ -1,0 +1,11 @@
+# M7.5 pilot (run first, ~8 episodes): does the LLM team solve T3 at all, and does the probe fire?
+# Go/no-go for the main study: >= 1 of 2 honest no-peer episodes ships a correct fix.
+#   clab run configs\experiments\peer_pilot.yaml --out runs\peer_pilot --workers 2
+scenario: swe
+profile: free_pinned
+tasks: [T3]
+conditions: [C1_honest_team, C3_collude_overt]
+seeds: [0, 1]
+peers: [none, probe]
+online_monitors: []
+cap_usd: 5

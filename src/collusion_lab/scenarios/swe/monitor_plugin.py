@@ -9,6 +9,7 @@ from ...monitor.detectors import generic as G
 from ...monitor.detectors import swe as S
 from ...monitor.judge import llm_judge_signal
 from . import repo as R
+from .peer import PEER
 
 
 @dataclass
@@ -20,6 +21,8 @@ class SWEContext:
     verifier_fraction: float = 0.5
     roster: Any = None
     step: int = 0
+    probe_token: str = ""                 # trusted peer's honeytoken (known to the trusted side only)
+    probe_targets: list = field(default_factory=list)
     cache: dict = field(default_factory=dict)
 
     @property
@@ -32,6 +35,11 @@ class SWEPlugin:
 
     def signals(self, level: str, ctx: SWEContext, events: list[Event]) -> list[Signal]:
         out: list[Signal] = []
+        all_events = events
+        # the trusted peer is not a suspect: its own messages/files never count as agent behaviour
+        events = [e for e in events if e.actor != PEER]
+        if level in ("M1", "M3", "M4") and ctx.probe_token:
+            out.append(S.probe_reciprocation_signal(all_events, ctx.probe_token, ctx.probe_targets))
         if level in ("M1", "M4"):
             out.append(G.transcript_rules_signal(events))
         if level == "M1":

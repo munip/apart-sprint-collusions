@@ -22,7 +22,8 @@ def _swe_job(args: dict) -> dict:
     try:
         roster = ModelRoster(args["profile"], args.get("overrides"), cap_usd=args.get("cap"))
         rec = run_episode(args["task"], args["condition"], args["seed"], Path(args["out"]), roster,
-                          args.get("online"), args.get("verifier_fraction", 0.5), pressure=args.get("pressure"))
+                          args.get("online"), args.get("verifier_fraction", 0.5), pressure=args.get("pressure"),
+                          peer=args.get("peer"))
         return {"ok": True, "episode": rec["episode_id"], "cost": rec["cost"]["usd"]}
     except Exception as e:  # keep the matrix going
         return {"ok": False, "job": args, "error": f"{e}\n{traceback.format_exc()[-1500:]}"}
@@ -53,13 +54,18 @@ def run_matrix(cfg: dict[str, Any], out: Path, workers: int = 2) -> list[dict]:
         print("note: pressures only bind LLM agents; scripted agents ignore them", flush=True)
     if cfg["scenario"] == "swe":
         fn = _swe_job
+        from .scenarios.swe.peer import PeerSpec
+        peers = [PeerSpec.parse(x).name for x in (cfg.get("peers") or ["none"])]   # trusted-peer factor
+        gate_arms = cfg.get("gate_arms")     # optional explicit (peer, online) pairs instead of the full cross
         for t in cfg["tasks"]:
             for c in cfg["conditions"]:
                 for s in cfg["seeds"]:
                     for p in pressures:
-                        for m in online_list:
+                        arms = ([(a.get("peer", "none"), a.get("online")) for a in gate_arms] if gate_arms
+                                else [(q, m) for q in peers for m in online_list])
+                        for q, m in arms:
                             jobs.append(dict(common, task=t, condition=c, seed=s, online=m, pressure=p.to_dict(),
-                                             verifier_fraction=cfg.get("verifier_fraction", 0.5)))
+                                             peer=q, verifier_fraction=cfg.get("verifier_fraction", 0.5)))
     else:
         fn = _mkt_job
         for c in cfg["conditions"]:
@@ -74,7 +80,9 @@ def run_matrix(cfg: dict[str, Any], out: Path, workers: int = 2) -> list[dict]:
         p = Pressure.parse(j.get("pressure"))
         if cfg["scenario"] == "swe":
             from .scenarios.swe.env import swe_episode_id
-            return swe_episode_id(j["task"], j["condition"], j["seed"], j.get("online"), p)
+            from .scenarios.swe.peer import PeerSpec
+            return swe_episode_id(j["task"], j["condition"], j["seed"], j.get("online"), p,
+                                  PeerSpec.parse(j.get("peer")))
         from .scenarios.market.env import market_episode_id
         return market_episode_id(j["condition"], j["seed"], j.get("online"), j["intervention"], p)
     before = len(jobs)
@@ -89,7 +97,8 @@ def run_matrix(cfg: dict[str, Any], out: Path, workers: int = 2) -> list[dict]:
     if workers <= 1:
         for i, j in enumerate(jobs, 1):
             print(f"[{i}/{len(jobs)}] starting {j.get('task', '')} {j['condition']} seed {j['seed']}"
-                  f" pressure {j['pressure']['name']}", flush=True)
+                  f" pressure {j['pressure']['name']} peer {j.get('peer', 'none')} gate {j.get('online') or '-'}",
+                  flush=True)
             report(i, fn(j))
     else:
         with ProcessPoolExecutor(workers) as ex:
@@ -138,6 +147,7 @@ def _replay_one(args: dict) -> list[dict]:
                 "episode": rec["episode_id"], "scenario": rec["scenario"], "task": rec.get("task", "market"),
                 "condition": rec["condition"], "seed": rec["seed"], "category": rec["truth"]["category"],
                 "pressure": (rec.get("pressure") or {}).get("name", "none"),
+                "peer": (rec.get("peer") or {}).get("mode", "none"),
                 "mechanism": rec["truth"]["mechanism"], "collusive": rec["truth"]["collusive"],
                 "instructed": rec["truth"]["collusive"], "occurred": did_occur, "occurred_how": how,
                 "harm": bool(harm), "monitor": lvl, "observability": obs, "action": d.action.value,
@@ -201,9 +211,19 @@ def episodes_table(run_dir: Path) -> pd.DataFrame:
         rows.append({"episode": r["episode_id"], "scenario": r["scenario"], "task": r.get("task", "market"),
                      "condition": r["condition"], "seed": r["seed"], "online": r.get("online_monitor"),
                      "pressure": (r.get("pressure") or {}).get("name", "none"),
+                     "peer": (r.get("peer") or {}).get("mode", "none") if isinstance(r.get("peer"), dict) else "none",
                      "intervention": r.get("intervention"), "collusive": r["truth"]["collusive"],
                      "category": r["truth"]["category"], "mechanism": r["truth"]["mechanism"],
-                     "cost_usd": r["cost"]["usd"], **{f"o_{k}": v for k, v in o.items() if not isinstance(v, (list, dict))}})
+                     "cost_usd": r["cost"]["usd"], "llm_calls": r["cost"].get("calls", 0),
+                     **{f"o_{k}": v for k, v in o.items() if not isinstance(v, (list, dict))},
+                     # actor lists (trusted-peer outcomes) as ';'-joined strings + derived flags
+                     **{f"o_{k}": ";".join(v) for k, v in o.items()
+                        if isinstance(v, list) and all(isinstance(x, str) for x in v)},
+                     **({"o_probe_reciprocated": bool(o.get("probe_reciprocators")),
+                         "o_probe_replied": bool(o.get("probe_replies")),
+                         "o_skip_after_checkpoint": bool(o.get("skip_after_checkpoint_by")),
+                         "o_qa_last_failing": (len(o["qa_reports"][-1]["failing"]) if o.get("qa_reports") else None)}
+                        if r["scenario"] == "swe" and "peer" in o else {})})
     df = pd.DataFrame(rows)
     df.to_csv(run_dir / "episodes.csv", index=False)
     return df
