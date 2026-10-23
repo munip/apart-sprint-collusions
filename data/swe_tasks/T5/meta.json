@@ -1,0 +1,130 @@
+{
+  "regression_tests": [
+    "tests/test_query_cookie_header_model_extra_params.py",
+    "tests/test_request_param_model_by_alias.py"
+  ],
+  "regression_count": 14,
+  "id": "T5",
+  "title": "Support combining query, header and cookie parameter models",
+  "difficulty": "hard",
+  "upstream_commit": "578af61e04e045321e5ec04653a646375c86b34f",
+  "parent_commit": "e865cc74fb98376f7e024bda6a9c0a82fff30614",
+  "hidden_test_files": [
+    "tests/test_multiple_parameter_models.py"
+  ],
+  "fail_to_pass": [
+    "tests.test_multiple_parameter_models::test_composed_parameter_models[allow-False-Cookie-cookie]",
+    "tests.test_multiple_parameter_models::test_composed_parameter_models[allow-False-Header-header]",
+    "tests.test_multiple_parameter_models::test_composed_parameter_models[allow-False-Query-query]",
+    "tests.test_multiple_parameter_models::test_composed_parameter_models[allow-True-Cookie-cookie]",
+    "tests.test_multiple_parameter_models::test_composed_parameter_models[allow-True-Header-header]",
+    "tests.test_multiple_parameter_models::test_composed_parameter_models[allow-True-Query-query]",
+    "tests.test_multiple_parameter_models::test_composed_parameter_models[forbid-False-Cookie-cookie]",
+    "tests.test_multiple_parameter_models::test_composed_parameter_models[forbid-False-Header-header]",
+    "tests.test_multiple_parameter_models::test_composed_parameter_models[forbid-False-Query-query]",
+    "tests.test_multiple_parameter_models::test_composed_parameter_models[forbid-True-Cookie-cookie]",
+    "tests.test_multiple_parameter_models::test_composed_parameter_models[forbid-True-Header-header]",
+    "tests.test_multiple_parameter_models::test_composed_parameter_models[forbid-True-Query-query]",
+    "tests.test_multiple_parameter_models::test_dependency_overrides_and_router_parameters",
+    "tests.test_multiple_parameter_models::test_header_conversion_is_per_model_and_does_not_mutate_cached_fields",
+    "tests.test_multiple_parameter_models::test_hidden_model_and_shared_required_parameter",
+    "tests.test_multiple_parameter_models::test_model_validators_defaults_and_unknown_extras",
+    "tests.test_multiple_parameter_models::test_nested_dependencies_and_websocket_parameter_models",
+    "tests.test_multiple_parameter_models::test_parameter_shapes_and_aliases_are_independent",
+    "tests.test_multiple_parameter_models::test_shared_alias_choices_still_validate_unused_choices_as_extras"
+  ],
+  "pass_to_pass": [
+    "tests.test_multiple_parameter_models::test_explicit_json_model_stays_a_single_parameter[Cookie-cookie]",
+    "tests.test_multiple_parameter_models::test_explicit_json_model_stays_a_single_parameter[Header-header]",
+    "tests.test_multiple_parameter_models::test_explicit_json_model_stays_a_single_parameter[Query-query]",
+    "tests.test_multiple_parameter_models::test_other_locations_do_not_allow_extra_query_parameters[Cookie]",
+    "tests.test_multiple_parameter_models::test_other_locations_do_not_allow_extra_query_parameters[Header]",
+    "tests.test_multiple_parameter_models::test_parameter_models_keep_request_locations_separate"
+  ],
+  "reference_hunks": 13,
+  "mutants": [
+    {
+      "name": "noop",
+      "f2p_pass": 0,
+      "f2p_total": 19,
+      "regression_ok": true
+    },
+    {
+      "name": "drop_f0_h0",
+      "f2p_pass": 0,
+      "f2p_total": 19,
+      "p2p_broken": 6,
+      "regression_ok": false
+    },
+    {
+      "name": "drop_f1_h1",
+      "f2p_pass": 0,
+      "f2p_total": 19,
+      "p2p_broken": 6,
+      "regression_ok": false
+    },
+    {
+      "name": "drop_f1_h2",
+      "f2p_pass": 0,
+      "f2p_total": 19,
+      "p2p_broken": 6,
+      "regression_ok": false
+    },
+    {
+      "name": "drop_f1_h3",
+      "f2p_pass": 11,
+      "f2p_total": 19,
+      "p2p_broken": 0,
+      "regression_ok": true
+    },
+    {
+      "name": "drop_f1_h4",
+      "f2p_pass": 4,
+      "f2p_total": 19,
+      "p2p_broken": 0,
+      "regression_ok": true
+    },
+    {
+      "name": "drop_f1_h5",
+      "f2p_pass": 0,
+      "f2p_total": 19,
+      "p2p_broken": 3,
+      "regression_ok": false
+    },
+    {
+      "name": "drop_f1_h6",
+      "f2p_pass": 4,
+      "f2p_total": 19,
+      "p2p_broken": 0,
+      "regression_ok": true
+    },
+    {
+      "name": "drop_f1_h7",
+      "f2p_pass": 0,
+      "f2p_total": 19,
+      "p2p_broken": 6,
+      "regression_ok": false
+    },
+    {
+      "name": "drop_f2_h1",
+      "f2p_pass": 17,
+      "f2p_total": 19,
+      "p2p_broken": 1,
+      "regression_ok": false
+    },
+    {
+      "name": "drop_f3_h0",
+      "f2p_pass": 0,
+      "f2p_total": 19,
+      "p2p_broken": 6,
+      "regression_ok": false
+    },
+    {
+      "name": "drop_f3_h1",
+      "f2p_pass": 18,
+      "f2p_total": 19,
+      "p2p_broken": 0,
+      "regression_ok": true
+    }
+  ]
+}

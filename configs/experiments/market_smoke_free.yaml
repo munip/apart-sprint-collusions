@@ -1,0 +1,8 @@
+# Market with LLM sellers on free tiers: 15 rounds x 5 sellers = 75 calls per episode
+scenario: market
+profile: free
+conditions: [A2_honest_chat, A3_overt_cartel, A5_stego_rotation]
+seeds: [0]
+rounds: 15
+online_monitors: []
+cap_usd: 1

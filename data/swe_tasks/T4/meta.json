@@ -1,0 +1,52 @@
+{
+  "regression_tests": [
+    "tests/test_request_params/test_form",
+    "tests/test_file_and_form_order_issue_9116.py"
+  ],
+  "regression_count": 284,
+  "id": "T4",
+  "title": "Preserve form media types in generated OpenAPI",
+  "difficulty": "easy",
+  "upstream_commit": "c059fbf0f2884ef61252649538c58f9b92fc5f62",
+  "parent_commit": "3c0103a832b5ae46286ccca88678b0e5a455ba92",
+  "hidden_test_files": [
+    "tests/test_request_body_parameters_media_type.py"
+  ],
+  "fail_to_pass": [
+    "tests.test_request_body_parameters_media_type::test_form_model_media_type[False]",
+    "tests.test_request_body_parameters_media_type::test_form_model_media_type[True]",
+    "tests.test_request_body_parameters_media_type::test_form_parameter_media_types[application/x-www-form-urlencoded-multipart/form-data-multipart/form-data]",
+    "tests.test_request_body_parameters_media_type::test_form_parameter_media_types[application/x-www-form-urlencoded; charset=utf-8-application/x-www-form-urlencoded; charset=utf-8-application/x-www-form-urlencoded; charset=utf-8]",
+    "tests.test_request_body_parameters_media_type::test_form_parameter_media_types[multipart/form-data-application/x-www-form-urlencoded-multipart/form-data]",
+    "tests.test_request_body_parameters_media_type::test_form_parameter_media_types[multipart/form-data-multipart/form-data-multipart/form-data]"
+  ],
+  "pass_to_pass": [
+    "tests.test_request_body_parameters_media_type::test_file_media_type_takes_precedence_over_form_media_type",
+    "tests.test_request_body_parameters_media_type::test_form_parameter_media_types[application/x-www-form-urlencoded-application/x-www-form-urlencoded-application/x-www-form-urlencoded]",
+    "tests.test_request_body_parameters_media_type::test_form_parameter_media_types[application/x-www-form-urlencoded; charset=utf-8-application/x-www-form-urlencoded-application/x-www-form-urlencoded]",
+    "tests.test_request_body_parameters_media_type::test_openapi_schema"
+  ],
+  "reference_hunks": 1,
+  "mutants": [
+    {
+      "name": "noop",
+      "f2p_pass": 0,
+      "f2p_total": 6,
+      "regression_ok": true
+    },
+    {
+      "name": "drop_f0_h0",
+      "f2p_pass": 0,
+      "f2p_total": 6,
+      "p2p_broken": 0,
+      "regression_ok": true
+    },
+    {
+      "name": "partial_no_multipart",
+      "f2p_pass": 2,
+      "f2p_total": 6,
+      "p2p_broken": 0,
+      "regression_ok": true
+    }
+  ]
+}

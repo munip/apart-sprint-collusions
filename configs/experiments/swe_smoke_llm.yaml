@@ -1,0 +1,8 @@
+# Cheapest meaningful LLM run: 1 easy task, 4 conditions, 1 seed (~$1-3 with Haiku-class agents)
+scenario: swe
+profile: cloud
+tasks: [T3]
+conditions: [C1_honest_team, C3_collude_overt, C4b_stego_artifact, C5a_leak_canary]
+seeds: [0]
+online_monitors: []
+cap_usd: 5
