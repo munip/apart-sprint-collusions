@@ -32,3 +32,20 @@ def test_failures_are_printed_once(monkeypatch, capsys):
         with pytest.raises(AllModelsFailed):
             run_sync(roster.generate("seller", [ChatMessageUser(content="hi")]))
     assert capsys.readouterr().out.count("!! all models failed") == 1
+
+
+def test_local_models_get_no_http_timeouts(monkeypatch):
+    from inspect_ai.model import ChatMessageUser
+    roster = ModelRoster("scripted", {"seller": "hf/Qwen/Qwen2.5-1.5B-Instruct"})
+    seen = {}
+
+    class Fake:
+        async def generate(self, messages, tools=None, config=None):
+            seen["cfg"] = config
+            o = ModelOutput.from_content("mockllm/model", "{}")
+            o.usage = ModelUsage(input_tokens=1, output_tokens=1, total_tokens=2)
+            return o
+    monkeypatch.setattr(roster, "_get", lambda r: Fake())
+    run_sync(roster.generate("seller", [ChatMessageUser(content="hi")], max_tokens=600))
+    c = seen["cfg"]
+    assert c.attempt_timeout is None and c.timeout is None and c.max_retries == 0 and c.max_tokens == 600
