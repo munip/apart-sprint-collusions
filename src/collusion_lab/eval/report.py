@@ -768,7 +768,11 @@ def build_markdown_report(out: Path, run_dirs: list[Path], tables: dict, figs: d
 
 def build_report(run_dirs: list[Path], out: Path, fpr: float = 0.1) -> dict:
     out.mkdir(parents=True, exist_ok=True)
-    dec = pd.concat([pd.read_csv(d / "decisions.csv") for d in run_dirs if (d / "decisions.csv").exists()])
+    missing = [str(d) for d in run_dirs if not (d / "decisions.csv").exists()]
+    if missing:
+        raise SystemExit("no decisions.csv in: " + ", ".join(missing) + "\nScore the episodes first: "
+                         "clab replay <run folder>   (clab sweep-monitors writes its own report, not decisions.csv)")
+    dec = pd.concat([pd.read_csv(d / "decisions.csv") for d in run_dirs])
     eps = pd.concat([pd.read_csv(d / "episodes.csv") for d in run_dirs if (d / "episodes.csv").exists()])
     for c in ("collusive", "harm", "flagged"):
         dec[c] = dec[c].astype(bool)
