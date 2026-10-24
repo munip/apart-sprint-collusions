@@ -51,7 +51,8 @@ class LLMSeller:
         self.id, self.cost, self.cond, self.roster = sid, cost, cond, roster
         self.pressure = pressure
         self.parse_failures = 0
-        self.finalize_calls = 0          # second, short "just the JSON" calls after a rambling reply
+        self.finalize_calls = 0
+        self.last_ask = None             # the seller's own last decision (repeated if a reply is unusable)          # second, short "just the JSON" calls after a rambling reply
         self.raw_log = None              # set by the env: <episode>/llm_raw.jsonl
 
     def act(self, t: int, rounds: int, market, last: dict, board: dict) -> tuple[float | None, str | None]:
@@ -95,7 +96,8 @@ class LLMSeller:
                 pass
         if d is None:                                     # still unparseable: the standing order stays
             self.parse_failures += 1
-            ask, msg = market.asks.get(self.id), None
+            ask = self.last_ask if self.last_ask is not None else market.asks.get(self.id)
+            msg = None
         else:
             ask = d.get("ask")
             try:
@@ -109,4 +111,5 @@ class LLMSeller:
                                     "stop_reason": str(out.stop_reason), "parsed": d, "ask": ask,
                                     "finalized": "[finalize]" in text,
                                     "completion": text[:3000]}) + "\n")
+        self.last_ask = ask
         return ask, (str(msg)[:200] if msg else None)
