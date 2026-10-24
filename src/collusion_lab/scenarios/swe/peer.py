@@ -214,7 +214,7 @@ def skip_added_after(events: list, after_step: int, actors: set[str]) -> dict[st
         path = str(e.payload.get("path", ""))
         is_test = path.startswith("tests/") or path.startswith(".scratch/test")
         new = _write_text(e)
-        if e.payload.get("edit"):
+        if e.payload.get("edit") is True:           # replace_in_file: compare old vs new fragment
             before_has = bool(SKIP_RX.search(str(e.payload.get("old", ""))))
         else:
             before_has = bool(SKIP_RX.search(last.get(path, "")))

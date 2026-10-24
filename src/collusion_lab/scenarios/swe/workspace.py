@@ -221,13 +221,22 @@ class Workspace:
         items = sorted(x.name + ("/" if x.is_dir() else "") for x in p.iterdir() if x.name != ".git")
         return "\n".join(items[:300])
 
-    def t_read_file(self, actor: str, path: str, start: int = 1, end: int | None = None) -> str:
+    def t_read_file(self, actor: str, path: str, start: int | str = 1, end: int | str | None = None) -> str:
+        if any(ch in path for ch in "*?["):          # models often ask for a glob: list the matches instead
+            base, _ = self._resolve(actor, ".")
+            hits = sorted(x.relative_to(base).as_posix() for x in base.glob(path) if x.is_file())
+            return ("files matching " + path + ":\n" + "\n".join(hits[:50])) if hits else f"error: no file matches {path}"
         p, where = self._resolve(actor, path)
         text = p.read_text()
         self._log(actor, EventKind.FILE_READ, {"path": path, "where": where, "sha": sha(text)}, "fs")
         lines = text.splitlines()
-        end = end or min(len(lines), start + 399)
-        return "\n".join(f"{i}: {ln}" for i, ln in enumerate(lines[start - 1:end], start))
+        start = max(1, int(start or 1))
+        end = int(end) if end not in (None, "") else min(len(lines), start + 399)
+        body = "\n".join(f"{i}: {ln}" for i, ln in enumerate(lines[start - 1:end], start))
+        if end < len(lines) or start > 1:
+            body += (f"\n(showing lines {start}-{min(end, len(lines))} of {len(lines)}; pass start and end to read "
+                     "other lines, or grep to find a function)")
+        return body
 
     def t_grep(self, actor: str, pattern: str, path: str = "fastapi") -> str:
         import re
@@ -271,8 +280,27 @@ class Workspace:
                                                 "new": new[:4000], "edit": True}, "fs")
         return f"edited {path}"
 
-    def t_run_tests(self, actor: str, paths: list[str] | str = "tests") -> str:
+    def t_edit_lines(self, actor: str, path: str, start: int | str, end: int | str, content: str) -> str:
+        """Replace lines start..end (1-based, inclusive) with `content`; end = start - 1 inserts before start."""
+        p = self._check_write(actor, path)
+        lines = p.read_text().splitlines(keepends=True)
+        s, e = int(start), int(end)
+        if not (1 <= s <= len(lines) + 1) or e < s - 1 or e > len(lines):
+            return f"error: lines {s}-{e} outside 1-{len(lines)}"
+        new = content if content.endswith("\n") or not content else content + "\n"
+        text = "".join(lines[:s - 1]) + new + "".join(lines[e:])
+        R.write_lf(p, text)
+        self._log(actor, EventKind.FILE_WRITE, {"path": path, "sha": sha(text), "content": text[:20000],
+                                                "edit": "lines", "start": s, "end": e}, "fs")
+        return f"edited {path}: lines {s}-{e} replaced by {len(new.splitlines())} line(s)"
+
+    def t_run_tests(self, actor: str, paths: list[str] | str | None = None) -> str:
         """Team CI: runs the given tests in the shared workspace (agents control this env)."""
+        if paths in (None, "", []):                  # default: the team's own feature and scratch tests
+            paths = sorted(x.relative_to(self.root).as_posix() for pat in ("tests/test_feature_*.py", ".scratch/test_*.py")
+                           for x in self.root.glob(pat))
+            if not paths:
+                return "error: no team tests yet (tests/test_feature_*.py); pass paths, e.g. [\"tests/test_x.py\"]"
         paths, note = normalize_test_paths(paths)
         if not paths:
             return ("error: give test files or node ids, e.g. [\"tests/test_feature_t3.py\"]. "
