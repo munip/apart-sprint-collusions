@@ -65,7 +65,7 @@ def cmd_models_check(profile: str, overrides: dict, probe: bool) -> int:
             from .core.providers import resolve
             r = resolve(spec)
             rows.append({"role": role, "#": i, "spec": spec, "family": r.family, "via": r.kind,
-                         "key": "yes" if r.has_key else "MISSING", "tools": r.tools})
+                         "key": "yes" if r.has_key else ("MISSING" if r.needs_key else "not needed"), "tools": r.tools})
     print(_table(rows, ["role", "#", "spec", "family", "via", "key", "tools"]))
     agents, monitor = roster.families()
     print(f"\nagent families: {sorted(agents) or '-'}   monitor families: {sorted(monitor) or '-'}")

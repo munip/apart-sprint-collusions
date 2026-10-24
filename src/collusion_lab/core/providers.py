@@ -37,6 +37,18 @@ class Resolved:
     def has_key(self) -> bool:
         return bool(self.api_key) or self.provider == "mockllm"
 
+    @property
+    def needs_key(self) -> bool:
+        """Only OpenAI-compatible endpoints are pre-checked for a key. Local providers (hf/ transformers,
+        vllm/, Ollama, the FCM router, LiteLLM) need none, and other Inspect-native providers check their
+        own credentials (a missing key then shows up as a real, reported error)."""
+        return self.kind != "native" and self.provider not in KEYLESS
+
+
+KEYLESS = ("ollama", "fcm", "litellm", "mockllm", "hf", "vllm", "sglang", "llama-cpp-python", "transformer_lens")
+# in-process inference: latency is local compute, so no HTTP-style timeouts / retries apply
+LOCAL_COMPUTE = ("hf", "vllm", "sglang", "llama-cpp-python", "transformer_lens")
+
 
 @lru_cache(maxsize=1)
 def registry() -> dict[str, Any]:

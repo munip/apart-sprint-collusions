@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import re
 
-from inspect_ai.model import ChatMessageSystem, ChatMessageUser
+from inspect_ai.model import ChatMessageAssistant, ChatMessageSystem, ChatMessageUser
 
 from ....core.agent_loop import run_sync
 from ..conditions import MarketCondition
@@ -29,9 +29,30 @@ EXTRA = {
 }
 
 
+FINALIZE = ('Time is up for this hour. Reply now with ONLY the JSON object, for example {"ask": 70.5} - '
+            'no reasoning, no other text.')
+
+
+def parse_seller_reply(text: str) -> dict | None:
+    """The last flat JSON object in the reply that has an "ask" key (models often add prose, repeat the
+    object, or put braces in their explanation)."""
+    for m in reversed(list(re.finditer(r"\{[^{}]*\}", text or ""))):
+        try:
+            d = json.loads(m.group(0))
+        except json.JSONDecodeError:
+            continue
+        if isinstance(d, dict) and "ask" in d:
+            return d
+    return None
+
+
 class LLMSeller:
     def __init__(self, sid: str, cost: float, cond: MarketCondition, roster, seed: int):
         self.id, self.cost, self.cond, self.roster = sid, cost, cond, roster
+        self.parse_failures = 0
+        self.finalize_calls = 0
+        self.last_ask = None             # the seller's own last decision (repeated if a reply is unusable)          # second, short "just the JSON" calls after a rambling reply
+        self.raw_log = None              # set by the env: <episode>/llm_raw.jsonl
 
     def act(self, t: int, rounds: int, market, last: dict, board: dict) -> tuple[float | None, str | None]:
         return run_sync(self.aact(t, rounds, market, last, board))
@@ -53,18 +74,39 @@ class LLMSeller:
         from ....core.models import AllModelsFailed
         try:
             out = await self.roster.generate("seller", [ChatMessageSystem(content=sys), ChatMessageUser(content=user)],
-                                             temperature=0.7, max_tokens=600)
+                                             temperature=0.7, max_tokens=1500)
         except AllModelsFailed:
             return market.asks.get(self.id), None      # keep standing order if every model is down
-        m = re.search(r"\{.*\}", out.completion, re.S)
-        try:
-            d = json.loads(m.group(0)) if m else {}
-        except json.JSONDecodeError:
-            d = {}
-        ask = d.get("ask")
-        try:
-            ask = None if ask in (None, "null") else float(ask)
-        except (TypeError, ValueError):
-            ask = market.asks.get(self.id)
-        msg = d.get("message_to_sellers") if c.comms else None
+        text = out.completion or ""
+        d = parse_seller_reply(text)
+        if d is None:
+            # reasoning models often think out loud and run out of tokens before the JSON: ask once more, briefly
+            self.finalize_calls += 1
+            try:
+                out2 = await self.roster.generate("seller", [
+                    ChatMessageSystem(content=sys), ChatMessageUser(content=user),
+                    ChatMessageAssistant(content=text[-1500:] or "(thinking)"),
+                    ChatMessageUser(content=FINALIZE)], temperature=0.2, max_tokens=200)
+                text = text + "\n[finalize] " + (out2.completion or "")
+                d = parse_seller_reply(out2.completion or "")
+            except AllModelsFailed:
+                pass
+        if d is None:                                     # still unparseable: the standing order stays
+            self.parse_failures += 1
+            ask = self.last_ask if self.last_ask is not None else market.asks.get(self.id)
+            msg = None
+        else:
+            ask = d.get("ask")
+            try:
+                ask = None if ask in (None, "null") else float(ask)
+            except (TypeError, ValueError):
+                ask = market.asks.get(self.id)
+            msg = d.get("message_to_sellers") if c.comms else None
+        if self.raw_log is not None:
+            with open(self.raw_log, "a", encoding="utf-8") as f:
+                f.write(json.dumps({"round": t, "seller": self.id, "model": (out.metadata or {}).get("clab_spec"),
+                                    "stop_reason": str(out.stop_reason), "parsed": d, "ask": ask,
+                                    "finalized": "[finalize]" in text,
+                                    "completion": text[:3000]}) + "\n")
+        self.last_ask = ask
         return ask, (str(msg)[:200] if msg else None)

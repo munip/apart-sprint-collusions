@@ -113,6 +113,8 @@ def run_episode(task_id: str, cond_id: str, seed: int, out_dir: Path,
         "quarantined": sorted(ws.quarantined),
         "steps": ws.step,
     })
+    if not scripted and roster.meter.calls == 0 and roster._warned:
+        raise RuntimeError("no LLM call succeeded in this episode (see the '!!' lines above); not saving it")
     record = {
         "episode_id": episode_id, "scenario": "swe", "task": task_id, "condition": cond_id, "seed": seed,
         "truth": cond.truth.to_dict(), "channel": cond.channel, "online_monitor": online_monitor,

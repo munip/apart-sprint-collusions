@@ -23,7 +23,7 @@ from typing import Any
 
 import yaml
 
-from .providers import Resolved, family, get_inspect_model, resolve
+from .providers import Resolved, family, get_inspect_model, resolve, LOCAL_COMPUTE
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_CONFIG = REPO_ROOT / "configs" / "models.yaml"
@@ -111,6 +111,10 @@ class RateLimiter:
             time.sleep(d)
 
 
+PINNED_RETRIES = 6      # a role with a single remote model waits out rate limits
+PINNED_TIMEOUT = 600.0  # seconds of total retry budget per call for such a role
+
+
 class ModelRoster:
     def __init__(self, profile: str | None = None, overrides: dict[str, str] | None = None,
                  config_path: Path = DEFAULT_CONFIG, cap_usd: float | None = None):
@@ -143,6 +147,8 @@ class ModelRoster:
         self.meter = CostMeter(cfg.get("prices", {}), cap)
         self._models: dict[str, Any] = {}
         self._json_mode: set[str] = set()          # specs that rejected native tool calls
+        self._warned: set[str] = set()
+        self._warn_count: dict[str, int] = {}
 
     # ------------------------------------------------------------------ mapping
     def chain(self, role: str) -> list[str]:
@@ -202,7 +208,7 @@ class ModelRoster:
             if self.is_scripted(role):
                 continue
             for r in self.resolved(role):
-                if not r.has_key and r.provider not in ("ollama", "fcm", "litellm"):
+                if r.needs_key and not r.has_key:
                     out.append(f"{role}: {r.spec} (no API key for provider '{r.provider}')")
         return out
 
@@ -221,11 +227,19 @@ class ModelRoster:
             if spec in SCRIPTED:
                 continue
             r = resolve(spec)
-            if not r.has_key and r.provider not in ("ollama", "fcm", "litellm", "mockllm"):
+            if r.needs_key and not r.has_key:
                 errors.append(f"{spec}: no API key")
                 continue
             use_tools = tools if (tools and self.tool_mode(role, spec) != "json") else []
             cfg = {**self.gen_defaults, **config}
+            local = r.provider in LOCAL_COMPUTE
+            if local:   # a timeout would abandon a generation that keeps running and piles up behind the next call
+                cfg.update(attempt_timeout=None, timeout=None, max_retries=0)
+            elif len([x for x in self.chain(role) if x not in SCRIPTED]) == 1:
+                # pinned to one remote model: there is nothing to fail over to, so wait out 429s instead of
+                # dropping the turn (Inspect backs off exponentially between retries)
+                cfg["max_retries"] = max(int(cfg.get("max_retries") or 0), PINNED_RETRIES)
+                cfg["timeout"] = max(float(cfg.get("timeout") or 0), PINNED_TIMEOUT)
             delay = RateLimiter.reserve(r.provider, r.rpm)
             if delay:
                 await asyncio.sleep(delay)     # non-blocking: parallel sellers keep their own slots
@@ -234,7 +248,7 @@ class ModelRoster:
                 gc = GenerateConfig(**{k: v for k, v in cfg.items() if k in GenerateConfig.model_fields})
                 # hard wall-clock guard on top of Inspect's retry budget: a stuck endpoint fails over
                 out = await asyncio.wait_for(model.generate(messages, tools=use_tools or [], config=gc),
-                                             timeout=float(cfg.get("timeout") or 180) + 30)
+                                             timeout=None if local else float(cfg.get("timeout") or 180) + 30)
             except Exception as e:  # rate limit, quota, network, unsupported tools ...
                 msg = str(e)
                 if use_tools and r.tools in ("auto", "native") and _tools_unsupported(msg):
@@ -251,7 +265,15 @@ class ModelRoster:
                            served=getattr(out, "model", None))
             out.metadata = {**(out.metadata or {}), "clab_spec": spec}
             return out
-        raise AllModelsFailed(f"all models failed for role {role}: " + " | ".join(errors))
+        msg = f"all models failed for role {role}: " + " | ".join(errors)
+        import re as _re
+        key = _re.sub(r" at 0x[0-9a-f]+", "", msg)[:200]   # same failure type -> one warning (+ a running count)
+        self._warn_count[key] = self._warn_count.get(key, 0) + 1
+        n = self._warn_count[key]
+        if n == 1 or n in (10, 100, 1000):
+            self._warned.add(msg)
+            print(f"  !! {msg[:400]}" + (f"   (x{n} so far)" if n > 1 else ""), flush=True)
+        raise AllModelsFailed(msg)
 
 
 class ToolModeSwitch(RuntimeError):
