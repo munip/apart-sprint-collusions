@@ -23,7 +23,7 @@ from typing import Any
 
 import yaml
 
-from .providers import Resolved, family, get_inspect_model, resolve
+from .providers import Resolved, family, get_inspect_model, resolve, LOCAL_COMPUTE
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_CONFIG = REPO_ROOT / "configs" / "models.yaml"
@@ -227,6 +227,9 @@ class ModelRoster:
                 continue
             use_tools = tools if (tools and self.tool_mode(role, spec) != "json") else []
             cfg = {**self.gen_defaults, **config}
+            local = r.provider in LOCAL_COMPUTE
+            if local:   # a timeout would abandon a generation that keeps running and piles up behind the next call
+                cfg.update(attempt_timeout=None, timeout=None, max_retries=0)
             delay = RateLimiter.reserve(r.provider, r.rpm)
             if delay:
                 await asyncio.sleep(delay)     # non-blocking: parallel sellers keep their own slots
@@ -235,7 +238,7 @@ class ModelRoster:
                 gc = GenerateConfig(**{k: v for k, v in cfg.items() if k in GenerateConfig.model_fields})
                 # hard wall-clock guard on top of Inspect's retry budget: a stuck endpoint fails over
                 out = await asyncio.wait_for(model.generate(messages, tools=use_tools or [], config=gc),
-                                             timeout=float(cfg.get("timeout") or 180) + 30)
+                                             timeout=None if local else float(cfg.get("timeout") or 180) + 30)
             except Exception as e:  # rate limit, quota, network, unsupported tools ...
                 msg = str(e)
                 if use_tools and r.tools in ("auto", "native") and _tools_unsupported(msg):
