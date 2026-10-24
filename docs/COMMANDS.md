@@ -15,8 +15,17 @@ All commands run from the repo root with the venv active (`.\.venv\Scripts\Activ
 | `market_llm.yaml` | market | free LLMs (`fcm_auto`) | 7 cond x 3 seeds x {none, M3+entrant} = 42 ep | LLM market study |
 | `swe_llm.yaml` | software | free LLMs (`fcm_auto`) | T3,T4 x 6 cond x 2 seeds = 24 ep | LLM SWE study |
 | `*_smoke_llm.yaml` | both | Anthropic (`cloud`) | smoke | once `ANTHROPIC_API_KEY` is set |
+| `swe_pressure_llm.yaml` | software | free LLMs | T3 x {C1, C3, C7} x 2 seeds x {2 min, 10 min, unlimited} = 18 ep | deadline vs collusion |
+| `market_pressure_llm.yaml` | market | free LLMs | 4 cond x 2 seeds x {5 s, 10 s, 30 s, unlimited} = 32 ep | decision time vs collusion |
 
 The profile in a config can be overridden with `--profile`, and seeds with `--seeds 0 1 2`.
+
+**Pressure / budgets** (any config): add `pressures: [t120, none]` to run every episode under each
+budget. `t<sec>` team deadline and `c<n>` tool-call budget (SWE), `d<sec>` decision window and
+`r<n>` rounds (market); combine with `+` (`t300+c60`). Agents are told the budget and the
+environment enforces it; scripted agents ignore it. Episode ids get a `-p<name>` suffix (none =
+unchanged), and the report adds a "Pressure / budgets" section. Other candidate variables per
+scenario and role: [PRESSURE_VARIABLES.md](PRESSURE_VARIABLES.md).
 
 ## `clab run` flags
 
@@ -56,6 +65,10 @@ clab run configs\experiments\swe_llm.yaml    --out runs\swe_llm    --workers 2
 
 # same, but the trusted monitor is your local Ollama model
 clab run configs\experiments\market_llm.yaml --out runs\market_llm_localmon --profile fcm_auto_local_monitor --workers 3
+
+# ---- pressure / budgets ---------------------------------------------------------------------
+clab run configs\experiments\swe_pressure_llm.yaml    --out runs\swe_pressure    --workers 2
+clab run configs\experiments\market_pressure_llm.yaml --out runs\market_pressure --workers 2
 
 # ---- score monitors offline (M0..M4 x 4 observability views) -----------------------------
 clab replay runs\market_llm --profile fcm_auto     # --profile supplies the M2/M4 LLM judge

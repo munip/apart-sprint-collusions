@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import shutil
+import time
 import tempfile
 from dataclasses import asdict
 from pathlib import Path
@@ -15,6 +16,7 @@ from typing import Any
 
 from ...core.evidence import EvidenceLog, MonitorPrivateLog
 from ...core.models import ModelRoster
+from ...core.pressure import Pressure
 from ...core.schema import Action, EventKind
 from ...monitor.core import TrustedMonitor
 from . import repo as R
@@ -42,12 +44,20 @@ def build_ctx(ws: Workspace, roster: ModelRoster | None, verifier_fraction: floa
                       verifier_fraction, roster, ws.step)
 
 
+def swe_episode_id(task_id: str, cond_id: str, seed: int, online_monitor: str | None = None,
+                   pressure: Pressure | None = None) -> str:
+    return (f"swe-{task_id}-{cond_id}-s{seed}" + (pressure.suffix() if pressure else "")
+            + (f"-{online_monitor}" if online_monitor else ""))
+
+
 def run_episode(task_id: str, cond_id: str, seed: int, out_dir: Path,
                 roster: ModelRoster | None = None, online_monitor: str | None = None,
-                verifier_fraction: float = 0.5, keep_workspace: bool = False) -> dict[str, Any]:
+                verifier_fraction: float = 0.5, keep_workspace: bool = False,
+                pressure: Pressure | str | dict | None = None) -> dict[str, Any]:
     cond: SWECondition = get(cond_id)
     roster = roster or ModelRoster("scripted")
-    episode_id = f"swe-{task_id}-{cond_id}-s{seed}" + (f"-{online_monitor}" if online_monitor else "")
+    pressure = Pressure.parse(pressure)
+    episode_id = swe_episode_id(task_id, cond_id, seed, online_monitor, pressure)
     ep_dir = out_dir / episode_id
     ep_dir.mkdir(parents=True, exist_ok=True)
     log = EvidenceLog(ep_dir / "evidence.jsonl")
@@ -64,8 +74,14 @@ def run_episode(task_id: str, cond_id: str, seed: int, out_dir: Path,
         team = ScriptedTeam(ws, cond, seed)
     else:
         from .agents.llm import LLMTeam
-        team = LLMTeam(ws, cond, seed, roster)
+        team = LLMTeam(ws, cond, seed, roster, pressure)
+        ws.deadline_s, ws.max_tool_calls = pressure.wall_seconds, pressure.max_tool_calls
+    if pressure.active:
+        log.emit(episode_id, "env", EventKind.STATE, {"event": "pressure", **pressure.to_dict(),
+                 "binding": not scripted}, "env", 0)
+    ws.started_at = time.monotonic()
     team.run()
+    work_seconds = round(time.monotonic() - ws.started_at, 1)
 
     gate_history = []
     released = False
@@ -112,6 +128,9 @@ def run_episode(task_id: str, cond_id: str, seed: int, out_dir: Path,
         "human_review": human_review,
         "quarantined": sorted(ws.quarantined),
         "steps": ws.step,
+        "work_seconds": work_seconds,
+        "budget_exhausted": ws.deadline_hit or None,
+        "turns_cut_by_budget": getattr(team, "cut_turns", 0),
     })
     if not scripted and roster.meter.calls == 0 and roster._warned:
         raise RuntimeError("no LLM call succeeded in this episode (see the '!!' lines above); not saving it")
@@ -121,7 +140,7 @@ def run_episode(task_id: str, cond_id: str, seed: int, out_dir: Path,
         "models": roster.describe(), "cost": roster.meter.summary(), "outcome": outcome,
         "gate": gate_history, "canary": ws.canary, "diff": ws.current_diff(),
         "team_tests": ws.team_test_files(), "chain_ok": log.verify_chain(),
-        "verifier_fraction": verifier_fraction,
+        "verifier_fraction": verifier_fraction, "pressure": pressure.to_dict(),
     }
     (ep_dir / "episode.json").write_text(json.dumps(record, indent=1, default=str))
     if not keep_workspace:

@@ -1,0 +1,15 @@
+# Does decision time change collusion? Each hour the exchange accepts orders for d seconds;
+# a seller that has not answered keeps its previous ask (board message dropped).
+# 4 conditions x 2 seeds x 4 pressures = 32 episodes x 75 seller calls.
+# NOTE: free-tier latency is often 2-10 s, so d5 measures "slow model under a hard window" as much
+# as deliberation; read the decision timeout rate / median decision time columns in the report,
+# and prefer fast seller models (clab pool assign ranks by speed).
+scenario: market
+profile: fcm_auto
+conditions: [A0_competitive, A2_honest_chat, A4_tacit, A5_stego_rotation]
+seeds: [0, 1]
+rounds: 15
+pressures: [d5, d10, d30, none]
+online_monitors: []
+interventions: [entrant]
+cap_usd: 5

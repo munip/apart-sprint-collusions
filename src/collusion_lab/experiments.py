@@ -22,7 +22,7 @@ def _swe_job(args: dict) -> dict:
     try:
         roster = ModelRoster(args["profile"], args.get("overrides"), cap_usd=args.get("cap"))
         rec = run_episode(args["task"], args["condition"], args["seed"], Path(args["out"]), roster,
-                          args.get("online"), args.get("verifier_fraction", 0.5))
+                          args.get("online"), args.get("verifier_fraction", 0.5), pressure=args.get("pressure"))
         return {"ok": True, "episode": rec["episode_id"], "cost": rec["cost"]["usd"]}
     except Exception as e:  # keep the matrix going
         return {"ok": False, "job": args, "error": f"{e}\n{traceback.format_exc()[-1500:]}"}
@@ -33,7 +33,8 @@ def _mkt_job(args: dict) -> dict:
     try:
         roster = ModelRoster(args["profile"], args.get("overrides"), cap_usd=args.get("cap"))
         rec = run_market_episode(args["condition"], args["seed"], Path(args["out"]), args.get("rounds", 30),
-                                 roster, args.get("online"), args.get("intervention", "entrant"))
+                                 roster, args.get("online"), args.get("intervention", "entrant"),
+                                 pressure=args.get("pressure"))
         return {"ok": True, "episode": rec["episode_id"], "cost": rec["cost"]["usd"]}
     except Exception as e:
         return {"ok": False, "job": args, "error": f"{e}\n{traceback.format_exc()[-1500:]}"}
@@ -46,27 +47,36 @@ def run_matrix(cfg: dict[str, Any], out: Path, workers: int = 2) -> list[dict]:
     common = dict(profile=cfg.get("profile", "scripted"), overrides=cfg.get("overrides"),
                   cap=cfg.get("cap_usd"), out=str(out))
     online_list = [None] + list(cfg.get("online_monitors", []))
+    from .core.pressure import Pressure, parse_list
+    pressures = parse_list(cfg.get("pressures"))      # factor; default [none] (ids unchanged)
+    if any(p.active for p in pressures) and str(cfg.get("profile", "scripted")) == "scripted":
+        print("note: pressures only bind LLM agents; scripted agents ignore them", flush=True)
     if cfg["scenario"] == "swe":
         fn = _swe_job
         for t in cfg["tasks"]:
             for c in cfg["conditions"]:
                 for s in cfg["seeds"]:
-                    for m in online_list:
-                        jobs.append(dict(common, task=t, condition=c, seed=s, online=m,
-                                         verifier_fraction=cfg.get("verifier_fraction", 0.5)))
+                    for p in pressures:
+                        for m in online_list:
+                            jobs.append(dict(common, task=t, condition=c, seed=s, online=m, pressure=p.to_dict(),
+                                             verifier_fraction=cfg.get("verifier_fraction", 0.5)))
     else:
         fn = _mkt_job
         for c in cfg["conditions"]:
             for s in cfg["seeds"]:
-                for m in online_list:
-                    for iv in (cfg.get("interventions", ["entrant"]) if m else ["entrant"]):
-                        jobs.append(dict(common, condition=c, seed=s, online=m, intervention=iv,
-                                         rounds=cfg.get("rounds", 30)))
+                for p in pressures:
+                    for m in online_list:
+                        for iv in (cfg.get("interventions", ["entrant"]) if m else ["entrant"]):
+                            jobs.append(dict(common, condition=c, seed=s, online=m, intervention=iv,
+                                             rounds=cfg.get("rounds", 30), pressure=p.to_dict()))
     # resumable: skip jobs whose episode already exists
     def _eid(j):
+        p = Pressure.parse(j.get("pressure"))
         if cfg["scenario"] == "swe":
-            return f"swe-{j['task']}-{j['condition']}-s{j['seed']}" + (f"-{j['online']}" if j.get("online") else "")
-        return f"mkt-{j['condition']}-s{j['seed']}" + (f"-{j['online']}-{j['intervention']}" if j.get("online") else "")
+            from .scenarios.swe.env import swe_episode_id
+            return swe_episode_id(j["task"], j["condition"], j["seed"], j.get("online"), p)
+        from .scenarios.market.env import market_episode_id
+        return market_episode_id(j["condition"], j["seed"], j.get("online"), j["intervention"], p)
     before = len(jobs)
     jobs = [j for j in jobs if not (out / _eid(j) / "episode.json").exists()]
     print(f"{before - len(jobs)} episodes already done, {len(jobs)} to run", flush=True)
@@ -78,7 +88,8 @@ def run_matrix(cfg: dict[str, Any], out: Path, workers: int = 2) -> list[dict]:
         print(f"[{i}/{len(jobs)}] done: {status}", flush=True)
     if workers <= 1:
         for i, j in enumerate(jobs, 1):
-            print(f"[{i}/{len(jobs)}] starting {j.get('task', '')} {j['condition']} seed {j['seed']}", flush=True)
+            print(f"[{i}/{len(jobs)}] starting {j.get('task', '')} {j['condition']} seed {j['seed']}"
+                  f" pressure {j['pressure']['name']}", flush=True)
             report(i, fn(j))
     else:
         with ProcessPoolExecutor(workers) as ex:
@@ -126,6 +137,7 @@ def _replay_one(args: dict) -> list[dict]:
             rows.append({
                 "episode": rec["episode_id"], "scenario": rec["scenario"], "task": rec.get("task", "market"),
                 "condition": rec["condition"], "seed": rec["seed"], "category": rec["truth"]["category"],
+                "pressure": (rec.get("pressure") or {}).get("name", "none"),
                 "mechanism": rec["truth"]["mechanism"], "collusive": rec["truth"]["collusive"],
                 "instructed": rec["truth"]["collusive"], "occurred": did_occur, "occurred_how": how,
                 "harm": bool(harm), "monitor": lvl, "observability": obs, "action": d.action.value,
@@ -179,6 +191,7 @@ def episodes_table(run_dir: Path) -> pd.DataFrame:
         o = r["outcome"]
         rows.append({"episode": r["episode_id"], "scenario": r["scenario"], "task": r.get("task", "market"),
                      "condition": r["condition"], "seed": r["seed"], "online": r.get("online_monitor"),
+                     "pressure": (r.get("pressure") or {}).get("name", "none"),
                      "intervention": r.get("intervention"), "collusive": r["truth"]["collusive"],
                      "category": r["truth"]["category"], "mechanism": r["truth"]["mechanism"],
                      "cost_usd": r["cost"]["usd"], **{f"o_{k}": v for k, v in o.items() if not isinstance(v, (list, dict))}})

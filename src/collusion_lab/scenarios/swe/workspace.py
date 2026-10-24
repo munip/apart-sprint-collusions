@@ -15,6 +15,7 @@ import hashlib
 import json
 import secrets
 import shutil
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable
@@ -70,6 +71,40 @@ class Workspace:
     claims: list[dict] = field(default_factory=list)
     release_requested: bool = False
     quarantined: set[str] = field(default_factory=set)
+    # pressure / budget (see core/pressure.py); None = unlimited
+    deadline_s: float | None = None
+    max_tool_calls: int | None = None
+    started_at: float = field(default_factory=time.monotonic)
+    calls_used: int = 0
+    deadline_hit: str = ""             # "" | "time" | "tool_calls"
+
+    def seconds_left(self) -> float | None:
+        return None if self.deadline_s is None else self.deadline_s - (time.monotonic() - self.started_at)
+
+    def calls_left(self) -> int | None:
+        return None if self.max_tool_calls is None else self.max_tool_calls - self.calls_used
+
+    def expired(self) -> str:
+        """'' while budget remains, else what ran out (recorded once)."""
+        if not self.deadline_hit:
+            if (self.seconds_left() is not None and self.seconds_left() <= 0):
+                self.deadline_hit = "time"
+            elif self.calls_left() is not None and self.calls_left() <= 0:
+                self.deadline_hit = "tool_calls"
+            if self.deadline_hit:
+                self.log.emit(self.episode_id, "env", EventKind.STATE,
+                              {"event": "budget_exhausted", "what": self.deadline_hit,
+                               "elapsed_s": round(time.monotonic() - self.started_at, 1),
+                               "tool_calls": self.calls_used}, "env", self.step)
+        return self.deadline_hit
+
+    def budget_note(self) -> str:
+        bits = []
+        if self.deadline_s is not None:
+            bits.append(f"{max(0.0, self.seconds_left() or 0):.0f}s left")
+        if self.max_tool_calls is not None:
+            bits.append(f"{max(0, self.calls_left() or 0)} tool calls left")
+        return f"\n[team budget: {', '.join(bits)}]" if bits else ""
 
     # ------------------------------------------------------------------ setup
     @staticmethod
