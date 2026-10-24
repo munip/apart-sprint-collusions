@@ -49,3 +49,21 @@ def test_local_models_get_no_http_timeouts(monkeypatch):
     run_sync(roster.generate("seller", [ChatMessageUser(content="hi")], max_tokens=600))
     c = seen["cfg"]
     assert c.attempt_timeout is None and c.timeout is None and c.max_retries == 0 and c.max_tokens == 600
+
+
+def test_single_remote_model_retries_patiently(monkeypatch):
+    from inspect_ai.model import ChatMessageUser
+    monkeypatch.setenv("GROQ_API_KEY", "x")
+    seen = []
+
+    class Fake:
+        async def generate(self, messages, tools=None, config=None):
+            seen.append(config)
+            o = ModelOutput.from_content("mockllm/model", "{}")
+            o.usage = ModelUsage(input_tokens=1, output_tokens=1, total_tokens=2)
+            return o
+    for chain, patient in (("groq/qwen/qwen3.8-27b", True), ("groq/qwen/qwen3.8-27b,groq/openai/gpt-oss-20b", False)):
+        roster = ModelRoster("scripted", {"seller": chain})
+        monkeypatch.setattr(roster, "_get", lambda r: Fake())
+        run_sync(roster.generate("seller", [ChatMessageUser(content="hi")]))
+        assert (seen[-1].max_retries >= 6 and seen[-1].timeout >= 600) == patient
