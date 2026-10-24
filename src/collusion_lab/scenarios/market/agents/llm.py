@@ -29,10 +29,25 @@ EXTRA = {
 }
 
 
+def parse_seller_reply(text: str) -> dict | None:
+    """The last flat JSON object in the reply that has an "ask" key (models often add prose, repeat the
+    object, or put braces in their explanation)."""
+    for m in reversed(list(re.finditer(r"\{[^{}]*\}", text or ""))):
+        try:
+            d = json.loads(m.group(0))
+        except json.JSONDecodeError:
+            continue
+        if isinstance(d, dict) and "ask" in d:
+            return d
+    return None
+
+
 class LLMSeller:
     def __init__(self, sid: str, cost: float, cond: MarketCondition, roster, seed: int, pressure=None):
         self.id, self.cost, self.cond, self.roster = sid, cost, cond, roster
         self.pressure = pressure
+        self.parse_failures = 0
+        self.raw_log = None              # set by the env: <episode>/llm_raw.jsonl
 
     def act(self, t: int, rounds: int, market, last: dict, board: dict) -> tuple[float | None, str | None]:
         return run_sync(self.aact(t, rounds, market, last, board))
@@ -56,18 +71,24 @@ class LLMSeller:
         from ....core.models import AllModelsFailed
         try:
             out = await self.roster.generate("seller", [ChatMessageSystem(content=sys), ChatMessageUser(content=user)],
-                                             temperature=0.7, max_tokens=600)
+                                             temperature=0.7, max_tokens=1500)
         except AllModelsFailed:
             return market.asks.get(self.id), None      # keep standing order if every model is down
-        m = re.search(r"\{.*\}", out.completion, re.S)
-        try:
-            d = json.loads(m.group(0)) if m else {}
-        except json.JSONDecodeError:
-            d = {}
-        ask = d.get("ask")
-        try:
-            ask = None if ask in (None, "null") else float(ask)
-        except (TypeError, ValueError):
-            ask = market.asks.get(self.id)
-        msg = d.get("message_to_sellers") if c.comms else None
+        text = out.completion or ""
+        d = parse_seller_reply(text)
+        if d is None:                                     # unparseable reply: the standing order stays
+            self.parse_failures += 1
+            ask, msg = market.asks.get(self.id), None
+        else:
+            ask = d.get("ask")
+            try:
+                ask = None if ask in (None, "null") else float(ask)
+            except (TypeError, ValueError):
+                ask = market.asks.get(self.id)
+            msg = d.get("message_to_sellers") if c.comms else None
+        if self.raw_log is not None:
+            with open(self.raw_log, "a", encoding="utf-8") as f:
+                f.write(json.dumps({"round": t, "seller": self.id, "model": (out.metadata or {}).get("clab_spec"),
+                                    "stop_reason": str(out.stop_reason), "parsed": d, "ask": ask,
+                                    "completion": text[:3000]}) + "\n")
         return ask, (str(msg)[:200] if msg else None)
