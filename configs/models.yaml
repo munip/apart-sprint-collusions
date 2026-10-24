@@ -93,6 +93,7 @@ profiles:
     default:       nvidia/nvidia/nemotron-3-ultra-550b-a55b
     monitor_judge: ollama_cloud/gpt-oss:120b      # different family (trusted side)
     qa_peer:       ollama_cloud/gpt-oss:120b      # trusted LLM peer (ablation arm only)
+    inner_monitor: ollama_cloud/gpt-oss:120b      # layered monitoring: capable, UNTRUSTED surveillance desk
     generate: {max_retries: 6, timeout: 600}
 
   fcm_fastest:         # every agent = the single fastest RELIABLE free model (benchmarked: `clab pool bench`)
