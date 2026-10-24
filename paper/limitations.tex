@@ -1,0 +1,46 @@
+\textbf{Limitations of the evidence.}
+\begin{itemize}
+\item \emph{Small samples.} $n\le5$ per SWE cell and 3 seeds per market cell. The design detects only large
+effects (about 0.6 absolute), and none of the SWE contrasts reached one. Market results are directions,
+not estimates.
+\item \emph{One task, one agent model.} All SWE results come from task T3 and all untrusted agents are
+\texttt{gemma4:31b}. Low competence (6/49 correct) dominated the outcomes; a stronger model or easier task
+may change every SWE conclusion.
+\item \emph{Induced, not learned, collusion.} Colluders were told their goal and channel. Collusion that
+emerges under optimisation pressure may be quieter, and less likely to be announced in chat.
+\item \emph{Stochastic pairing.} LLM sellers are not deterministic, so paired market runs diverge before the
+intervention. We used a before/after difference against the pair, which only partly corrects for this.
+\item \emph{Late, short interventions.} The market monitor acted from round 10, so interventions ran for
+1--5 of 15 rounds.
+\item \emph{Deviations.} One excluded SWE episode was not replaced as pre-registered, and the \Mtwo{} LLM
+judge was not replayed. Market results (RQ4) are exploratory in the pre-registration's terms.
+\end{itemize}
+
+\textbf{Constraints of the setup.}
+\begin{itemize}
+\item \emph{Structural trust assumptions.} Agents cannot write to the evidence log, reach the monitor, or
+bypass the release or order gate. These hold in our harness by construction; a deployed system has to
+enforce them.
+\item \emph{The reviewer was honest by construction} and became the strongest safeguard. A coalition that
+includes the reviewer is outside this study.
+\item \emph{Verification needs observable outcomes.} Hidden tests must cover the defect (our \Mthree{} sees
+half of them), and the market check needs trades: a cartel that refuses to sell produced no prices to
+verify.
+\item \emph{Free endpoints.} Rate limits and latency forced one pinned model and small runs; budget, not
+design, set the sample size.
+\item \emph{Same-family trusted roles.} The \Mtwo{} judge and \qa{} wording share one model; the trusted
+side's verdicts were deterministic, so the capability gap between trusted and untrusted components was not
+varied.
+\end{itemize}
+
+\textbf{Open questions.}
+\begin{itemize}
+\item Does a trusted verifier with a \textsc{Hold} right, rather than a voice, reduce harm, and at what
+utility cost?
+\item Would a stronger or goal-directed colluder accept a stranger's offer? Is the null probe evidence of
+honesty, policy-following, or simply ignoring unsolicited messages?
+\item How much entry is needed to make incumbents compete, rather than only giving buyers an outside option?
+\item When the inner monitor is itself a capable, untrusted model that agents can see and persuade, can an
+outer layer of weaker but trusted checks detect that the monitor has joined the coalition?
+\item How should harm verification and collusion detection be combined when honest agents also fail?
+\end{itemize}
