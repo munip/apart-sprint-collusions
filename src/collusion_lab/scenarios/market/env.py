@@ -144,7 +144,8 @@ def run_market_episode(cond_id: str, seed: int, out_dir: Path, rounds: int = 30,
             print(f"  [{episode_id}] round {t}/{rounds}: asks {sorted(rec.asks.values())} | "
                   f"{len(trades)} trades{' @ ' + str(round(sum(ps) / len(ps), 2)) if ps else ''} | "
                   f"LLM calls {roster.meter.calls}, failovers {sum(roster.meter.failures.values())}, "
-                  f"unparseable replies {sum(getattr(x, 'parse_failures', 0) for x in sellers.values())}", flush=True)
+                  f"unparseable replies {sum(getattr(x, 'parse_failures', 0) for x in sellers.values())}, "
+                  f"re-asked {sum(getattr(x, 'finalize_calls', 0) for x in sellers.values())}", flush=True)
 
         # ----- online trusted monitor
         if online_monitor and t >= monitor_from:
