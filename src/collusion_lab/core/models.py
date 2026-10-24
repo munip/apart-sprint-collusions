@@ -111,6 +111,10 @@ class RateLimiter:
             time.sleep(d)
 
 
+PINNED_RETRIES = 6      # a role with a single remote model waits out rate limits
+PINNED_TIMEOUT = 600.0  # seconds of total retry budget per call for such a role
+
+
 class ModelRoster:
     def __init__(self, profile: str | None = None, overrides: dict[str, str] | None = None,
                  config_path: Path = DEFAULT_CONFIG, cap_usd: float | None = None):
@@ -144,6 +148,7 @@ class ModelRoster:
         self._models: dict[str, Any] = {}
         self._json_mode: set[str] = set()          # specs that rejected native tool calls
         self._warned: set[str] = set()
+        self._warn_count: dict[str, int] = {}
 
     # ------------------------------------------------------------------ mapping
     def chain(self, role: str) -> list[str]:
@@ -230,6 +235,11 @@ class ModelRoster:
             local = r.provider in LOCAL_COMPUTE
             if local:   # a timeout would abandon a generation that keeps running and piles up behind the next call
                 cfg.update(attempt_timeout=None, timeout=None, max_retries=0)
+            elif len([x for x in self.chain(role) if x not in SCRIPTED]) == 1:
+                # pinned to one remote model: there is nothing to fail over to, so wait out 429s instead of
+                # dropping the turn (Inspect backs off exponentially between retries)
+                cfg["max_retries"] = max(int(cfg.get("max_retries") or 0), PINNED_RETRIES)
+                cfg["timeout"] = max(float(cfg.get("timeout") or 0), PINNED_TIMEOUT)
             delay = RateLimiter.reserve(r.provider, r.rpm)
             if delay:
                 await asyncio.sleep(delay)     # non-blocking: parallel sellers keep their own slots
@@ -256,9 +266,13 @@ class ModelRoster:
             out.metadata = {**(out.metadata or {}), "clab_spec": spec}
             return out
         msg = f"all models failed for role {role}: " + " | ".join(errors)
-        if msg not in self._warned:              # say it once per distinct failure, not silently per call
+        import re as _re
+        key = _re.sub(r" at 0x[0-9a-f]+", "", msg)[:200]   # same failure type -> one warning (+ a running count)
+        self._warn_count[key] = self._warn_count.get(key, 0) + 1
+        n = self._warn_count[key]
+        if n == 1 or n in (10, 100, 1000):
             self._warned.add(msg)
-            print(f"  !! {msg[:400]}", flush=True)
+            print(f"  !! {msg[:400]}" + (f"   (x{n} so far)" if n > 1 else ""), flush=True)
         raise AllModelsFailed(msg)
 
 
