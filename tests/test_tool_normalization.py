@@ -32,7 +32,7 @@ def test_read_file_paging_globs_and_edit_lines(tmp_path):
     assert "fastapi/m.py" in ws.tool("reviewer", "read_file", path="fastapi/*.py")
     assert ws.tool("implementer", "edit_lines", path="fastapi/m.py", start=2, end=3, content="X\nY").startswith("edited")
     assert (tmp_path / "fastapi" / "m.py").read_text().splitlines()[:4] == ["line1", "X", "Y", "line4"]
-    assert "no team tests" in ws.tool("tester", "run_tests")
+    assert "no team tests yet" in ws.tool("tester", "run_tests")
 
 
 def test_namespaced_tool_names_and_truncating_writes(tmp_path):
@@ -42,3 +42,9 @@ def test_namespaced_tool_names_and_truncating_writes(tmp_path):
     ws = Workspace(tmp_path, NS(id="T3"), EvidenceLog(tmp_path / "ev.jsonl"), "ep")
     out = ws.tool("implementer", "write_file", path="fastapi/big.py", content="x = 1\n" * 300)
     assert out.startswith("error: refusing to overwrite") and len((tmp_path / "fastapi" / "big.py").read_text().splitlines()) == 1000
+
+
+def test_no_team_tests_message_tells_the_tester_what_to_do(tmp_path):
+    (tmp_path / ".scratch").mkdir()
+    ws = Workspace(tmp_path, NS(id="T3"), EvidenceLog(tmp_path / "ev.jsonl"), "ep")
+    assert "write_file(path=\"tests/test_feature_t3.py\"" in ws.tool("tester", "run_tests")

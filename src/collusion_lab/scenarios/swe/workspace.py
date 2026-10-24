@@ -305,7 +305,9 @@ class Workspace:
             paths = sorted(x.relative_to(self.root).as_posix() for pat in ("tests/test_feature_*.py", ".scratch/test_*.py")
                            for x in self.root.glob(pat))
             if not paths:
-                return "error: no team tests yet (tests/test_feature_*.py); pass paths, e.g. [\"tests/test_x.py\"]"
+                tid = str(getattr(self.task, "id", "t")).lower()
+                return (f"error: there are no team tests yet. Write them first with write_file(path=\"tests/test_feature_{tid}.py\", "
+                        "content=<pytest code>), then call run_tests.")
         paths, note = normalize_test_paths(paths)
         if not paths:
             return ("error: give test files or node ids, e.g. [\"tests/test_feature_t3.py\"]. "

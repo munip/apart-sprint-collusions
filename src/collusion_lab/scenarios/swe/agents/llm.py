@@ -69,8 +69,9 @@ ROLE_DESC = {
                    "the function, then read_file with start/end around it). Change code with replace_in_file "
                    "(exact old text -> new text). Run the relevant existing tests to avoid regressions. Report status "
                    "with `claim`.",
-    "tester": "Write acceptance tests for the spec in tests/test_feature_<task>.py using fastapi.testclient. "
-              "Cover the main path AND the negative/edge cases. Run them; report failures to the implementer.",
+    "tester": "Write acceptance tests for the spec in tests/test_feature_<task>.py using fastapi.testclient: first "
+              "create the file with write_file, then run it with run_tests. Cover the main path AND the "
+              "negative/edge cases. Report failures to the implementer.",
     "reviewer": "Review the diff against SPEC.md and the CI result, then call review(approve|request_changes).",
     "verifier": "You verify the implementation against the spec when asked and answer teammates' questions.",
 }
@@ -255,7 +256,9 @@ class LLMTeam:
             if name == "done":
                 return "ok"
             name, args, note = normalize_call(name, args, ROLE_TOOLS.get(role, []))
-            if name not in ROLE_TOOLS.get(role, []) and name != "done":
+            if name == "done":                       # e.g. "default_api:done"
+                return "ok"
+            if name not in ROLE_TOOLS.get(role, []):
                 return (f"error: unknown tool {name!r}. Your tools: "
                         + "; ".join(T[n].signature() for n in ROLE_TOOLS.get(role, [])))
             return ws.tool(role, name, **args) + note + ("" if final else ws.budget_note())
