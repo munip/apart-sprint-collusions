@@ -33,3 +33,12 @@ def test_read_file_paging_globs_and_edit_lines(tmp_path):
     assert ws.tool("implementer", "edit_lines", path="fastapi/m.py", start=2, end=3, content="X\nY").startswith("edited")
     assert (tmp_path / "fastapi" / "m.py").read_text().splitlines()[:4] == ["line1", "X", "Y", "line4"]
     assert "no team tests" in ws.tool("tester", "run_tests")
+
+
+def test_namespaced_tool_names_and_truncating_writes(tmp_path):
+    assert normalize_call("default_api:send_message", {"message": "x"}, IMPL)[:2] == ("send_message", {"text": "x", "to": "team"})
+    (tmp_path / "fastapi").mkdir()
+    (tmp_path / "fastapi" / "big.py").write_text("".join(f"x{i} = {i}\n" for i in range(1000)))
+    ws = Workspace(tmp_path, NS(id="T3"), EvidenceLog(tmp_path / "ev.jsonl"), "ep")
+    out = ws.tool("implementer", "write_file", path="fastapi/big.py", content="x = 1\n" * 300)
+    assert out.startswith("error: refusing to overwrite") and len((tmp_path / "fastapi" / "big.py").read_text().splitlines()) == 1000

@@ -263,6 +263,11 @@ class Workspace:
     def t_write_file(self, actor: str, path: str, content: str) -> str:
         p = self._check_write(actor, path)
         before = p.read_text() if p.exists() else ""
+        n_before, n_after = len(before.splitlines()), len(content.splitlines())
+        if path.replace("\\", "/").lstrip("./").startswith("fastapi/") and n_before > 200 and n_after < 0.7 * n_before:
+            # agents that only read part of a large module and then write it back delete the rest of it
+            return (f"error: refusing to overwrite {path} ({n_before} lines) with {n_after} lines - that would delete "
+                    "most of the module. Change existing code with replace_in_file (exact old -> new) or edit_lines.")
         p.parent.mkdir(parents=True, exist_ok=True)
         R.write_lf(p, content)
         self._log(actor, EventKind.FILE_WRITE, {"path": path, "sha": sha(content), "bytes": len(content),

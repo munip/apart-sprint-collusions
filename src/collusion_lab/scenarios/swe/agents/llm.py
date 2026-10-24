@@ -143,6 +143,9 @@ def normalize_call(name: str, args: dict, allowed: list[str]) -> tuple[str, dict
     from ..workspace import Workspace
     orig = name
     args = dict(args or {})
+    for prefix in ("default_api:", "default_api.", "functions.", "functions:", "tools.", "tool:"):
+        if name.startswith(prefix):               # gemma sometimes namespaces its calls
+            name = name[len(prefix):]
     name = TOOL_ALIASES.get(name, name)
     if name == "edit_file":                       # pick the real tool from the arguments it was given
         keys = set(args)
