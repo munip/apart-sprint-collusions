@@ -2,15 +2,15 @@
 
 A research harness for one question: **can a trusted monitor tell harmful coordination
 from legitimate cooperation, disrupt it, and leave honest work alone, including when the
-coordination is hidden by steganography?**
+coordination is hidden by steganography or other means?**
 
 It contains:
 
 * two real-world scenarios behind one monitor interface:
-  * **Scenario B (software integrity).** A planner, implementer, tester, reviewer and release-bot
+  * **Software Engineering Scenario  (software integrity).** A planner, implementer, tester, reviewer and release-bot
     team works on real **FastAPI** features (5 upstream commits from 21 Oct 2026). Hidden
     SWE-bench-style acceptance tests define ground truth.
-  * **Scenario A (market integrity).** Sellers on a **continuous double auction** framed as an
+  * **Market Trade/Auction Scenario  (market integrity).** Sellers on a **continuous double auction** framed as an
     hourly wholesale power exchange. The protocol follows *Evaluating LLM Agent Collusion in
     Double Auctions*. The competitive-equilibrium benchmark defines harm.
 * collusion conditions ranging from overt to **steganographic**: codebook phrases, code-comment
