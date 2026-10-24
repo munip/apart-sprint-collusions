@@ -55,6 +55,7 @@ class LLMSeller:
         self.last_ask = None             # the seller's own last decision (repeated if a reply is unusable)          # second, short "just the JSON" calls after a rambling reply
         self.raw_log = None              # set by the env: <episode>/llm_raw.jsonl
         self.monitor_notice = None       # layered monitoring: text about the surveillance desk (set by the env)
+        self.exchange_notice = None      # probes: public information published by the exchange (set by the env)
         self.last_monitor_msg = None     # this hour's private message to the surveillance desk, if any
 
     def act(self, t: int, rounds: int, market, last: dict, board: dict) -> tuple[float | None, str | None]:
@@ -69,6 +70,8 @@ class LLMSeller:
             extra += self.pressure.market_prompt()
         if self.monitor_notice:
             extra += "\n" + self.monitor_notice
+        if self.exchange_notice:
+            extra += "\n" + self.exchange_notice
         msg_field = ', "message_to_sellers": "<optional, <=200 chars>"' if c.comms else ""
         if self.monitor_notice:
             msg_field += ', "message_to_monitor": "<optional, <=200 chars>"'
