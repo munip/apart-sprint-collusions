@@ -366,6 +366,9 @@ def expand_auto(mapping: dict[str, Any], pool_cfg: dict[str, Any], verbose: bool
     if "ollama" in last:
         i = last.index("ollama")
         last[i:i + 1] = [f"ollama/{m}" for m in ollama_models()]
+    fastest_roles = [r for r, v in roles.items() if v.split(":", 1)[-1] == "fastest"]
+    if fastest_roles:
+        return _expand_fastest(roles, fastest_roles, pool, pool_cfg, mapping)
     mon_fam = None
     mj = mapping.get("monitor_judge")
     if mj and "monitor_judge" not in auto_roles:
@@ -373,3 +376,37 @@ def expand_auto(mapping: dict[str, Any], pool_cfg: dict[str, Any], verbose: bool
         if first not in ("none", "scripted"):
             mon_fam = resolve(first).family
     return assign(roles, pool, pool_cfg.get("chain_length", 4), pool_cfg.get("diverse_roles", True), last, mon_fam)
+
+
+TRUSTED_ROLES = ("monitor_judge", "qa_peer")
+
+
+def _expand_fastest(roles: dict[str, str], fastest_roles: list[str], pool: list[Candidate],
+                    pool_cfg: dict[str, Any], mapping: dict[str, Any]) -> dict[str, list[str]]:
+    """`auto:fastest`: every such role is pinned to ONE model - the fastest reliable one from the benchmark
+    (no fallback chain, so all agents really are the same model). Trusted roles left on auto get the best
+    usable model from a different family."""
+    from . import bench as B
+    rows = B.cached(pool_cfg.get("ttl_hours", 6))
+    if rows is None:
+        specs = B.candidates_from_pool(pool, pool_cfg.get("bench_top", 8))
+        print(f"benchmarking {len(specs)} free models on realistic agent calls (once per "
+              f"{pool_cfg.get('ttl_hours', 6)} h; `clab pool bench` to redo)...", flush=True)
+        rows = B.bench(specs, pool_cfg.get("bench_calls", 6))
+    best = B.pick_fastest(rows)
+    if best is None:
+        raise RuntimeError("no free model passed the benchmark (see `clab pool bench`); pin one with --role default=...")
+    print(f"fastest reliable free model: {best['spec']} (median {best['median_s']} s per call, "
+          f"fail {best['fail_rate']:.0%})", flush=True)
+    out: dict[str, list[str]] = {r: [best["spec"]] for r in fastest_roles}
+    others = [c for c in pool if c.ok and c.family not in (best["family"], "unknown", "router:dynamic")
+              and c.provider != "ollama"]
+    others.sort(key=lambda c: c.score, reverse=True)
+    for r in roles:
+        if r in out:
+            continue
+        if r in TRUSTED_ROLES:
+            out[r] = [c.spec for c in others][: pool_cfg.get("chain_length", 4)] or ["none"]
+        else:
+            out[r] = [best["spec"]]
+    return out
