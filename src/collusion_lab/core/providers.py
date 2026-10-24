@@ -46,6 +46,8 @@ class Resolved:
 
 
 KEYLESS = ("ollama", "fcm", "litellm", "mockllm", "hf", "vllm", "sglang", "llama-cpp-python", "transformer_lens")
+# in-process inference: latency is local compute, so no HTTP-style timeouts / retries apply
+LOCAL_COMPUTE = ("hf", "vllm", "sglang", "llama-cpp-python", "transformer_lens")
 
 
 @lru_cache(maxsize=1)
