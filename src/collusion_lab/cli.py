@@ -124,6 +124,10 @@ def main(argv: list[str] | None = None) -> None:
     pd = pls.add_parser("discover")
     pd.add_argument("--refresh", action="store_true")
     pd.add_argument("--max-probe", type=int)
+    pb = pls.add_parser("bench", help="time realistic agent calls on the usable models; pick the fastest")
+    pb.add_argument("--top", type=int, default=8, help="how many usable models to benchmark")
+    pb.add_argument("--calls", type=int, default=6, help="calls per model (alternating JSON and tool-call prompts)")
+    pb.add_argument("--include", action="append", help="also benchmark this spec (repeatable)")
     pa = pls.add_parser("assign")
     pa.add_argument("--profile", default="fcm_auto")
 
@@ -223,6 +227,19 @@ def main(argv: list[str] | None = None) -> None:
                      "latency_s": c.latency_s, "score": c.score, "error": c.error[:60]} for c in cands]
             print(_table(rows, ["spec", "family", "source", "ok", "tools", "latency_s", "score", "error"]))
             print(f"\n{sum(1 for c in cands if c.ok)} usable models cached in {PL.CACHE_FILE}")
+        elif a.sub == "bench":
+            import yaml as _y
+            from .core import bench as B
+            pc = (_y.safe_load((REPO / "configs" / "models.yaml").read_text(encoding="utf-8")).get("pool") or {})
+            cands = PL.discover(pc.get("sources"), pc.get("max_probe", 24), pc.get("concurrency", 6),
+                                pc.get("timeout", 30), pc.get("ttl_hours", 6), refresh=False)
+            specs = B.candidates_from_pool(cands, a.top) + [s for s in (a.include or [])]
+            print(f"benchmarking {len(specs)} models x {a.calls} calls ...")
+            rows = B.bench(list(dict.fromkeys(specs)), a.calls)
+            print(_table(rows, ["spec", "family", "median_s", "p90_s", "fail_rate", "json_ok", "tool_ok", "score", "error"]))
+            best = B.pick_fastest(rows)
+            print(f"\nfastest reliable: {best['spec'] if best else 'none'}   (profile fcm_fastest uses it; "
+                  f"cached in {B.BENCH_FILE})")
         else:
             sys.exit(cmd_models_check(a.profile, {}, probe=False))
     elif a.cmd == "models":

@@ -91,8 +91,14 @@ profiles:
   # instead of failing over to a different model, so every agent call is the same model.
   free_pinned:
     default:       nvidia/nvidia/nemotron-3-ultra-550b-a55b
-    monitor_judge: groq/openai/gpt-oss-120b      # different family (trusted side)
-    qa_peer:       groq/openai/gpt-oss-120b      # trusted LLM peer (ablation arm only)
+    monitor_judge: ollama_cloud/gpt-oss:120b      # different family (trusted side)
+    qa_peer:       ollama_cloud/gpt-oss:120b      # trusted LLM peer (ablation arm only)
+    generate: {max_retries: 6, timeout: 600}
+
+  fcm_fastest:         # every agent = the single fastest RELIABLE free model (benchmarked: `clab pool bench`)
+    default:       auto:fastest
+    monitor_judge: auto:judge                    # best usable model from another family
+    qa_peer:       auto:judge
     generate: {max_retries: 6, timeout: 600}
 
   claude_pinned:       # same design once ANTHROPIC_API_KEY is set

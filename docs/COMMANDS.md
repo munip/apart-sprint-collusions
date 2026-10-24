@@ -80,6 +80,10 @@ clab run configs\experiments\market_llm.yaml --out runs\market_llm_localmon --pr
 clab run configs\experiments\swe_pressure_llm.yaml    --out runs\swe_pressure    --workers 2
 clab run configs\experiments\market_pressure_llm.yaml --out runs\market_pressure --workers 2
 
+# ---- pick the fastest reliable free model for ALL agents (benchmark, cached 6 h) ------------
+clab pool bench                                    # times realistic JSON + tool calls on the top 8 usable models
+clab run configs\experiments\peer_pilot.yaml --out runs\peer_pilot --profile fcm_fastest --workers 1
+
 # ---- paper: trusted peer study (docs/PAPER_PLAN.md, docs/PREREG.md) -----------------------
 clab run configs\experiments\peer_pilot.yaml     --out runs\peer_pilot     --workers 2
 clab run configs\experiments\peer_study.yaml     --out runs\peer_study     --workers 2

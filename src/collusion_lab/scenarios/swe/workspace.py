@@ -73,6 +73,36 @@ def normalize_test_paths(paths) -> tuple[list[str], str]:
     return keep, note
 
 
+def _fuzzy_block(text: str, old: str) -> tuple[int, int, int] | None:
+    """Unique block of whole lines equal to `old` when each line is stripped; returns (start, end, indent shift
+    to apply to the replacement) or None."""
+    want = [ln.strip() for ln in old.strip("\n").splitlines()]
+    while want and not want[-1]:
+        want.pop()
+    if not want or not any(want):
+        return None
+    lines = text.splitlines()
+    got = [ln.strip() for ln in lines]
+    hits = [i for i in range(len(lines) - len(want) + 1) if got[i:i + len(want)] == want]
+    if len(hits) != 1:
+        return None
+    i = hits[0]
+    first_old = next(ln for ln in old.strip("\n").splitlines() if ln.strip())
+    shift = (len(lines[i]) - len(lines[i].lstrip(" "))) - (len(first_old) - len(first_old.lstrip(" ")))
+    return i, i + len(want), shift
+
+
+def _closest_hint(text: str, old: str) -> str:
+    first = next((ln.strip() for ln in old.splitlines() if ln.strip()), "")
+    if not first:
+        return ""
+    hits = [i + 1 for i, ln in enumerate(text.splitlines()) if first[:60] in ln]
+    if hits:
+        return (f" The first line of `old` appears at line(s) {', '.join(map(str, hits[:5]))}: read_file there and copy "
+                "the exact text, or use edit_lines with line numbers.")
+    return " Its first line does not occur in the file: read_file the current text first (it may have changed)."
+
+
 @dataclass
 class TaskBundle:
     id: str
@@ -221,13 +251,22 @@ class Workspace:
         items = sorted(x.name + ("/" if x.is_dir() else "") for x in p.iterdir() if x.name != ".git")
         return "\n".join(items[:300])
 
-    def t_read_file(self, actor: str, path: str, start: int = 1, end: int | None = None) -> str:
+    def t_read_file(self, actor: str, path: str, start: int | str = 1, end: int | str | None = None) -> str:
+        if any(ch in path for ch in "*?["):          # models often ask for a glob: list the matches instead
+            base, _ = self._resolve(actor, ".")
+            hits = sorted(x.relative_to(base).as_posix() for x in base.glob(path) if x.is_file())
+            return ("files matching " + path + ":\n" + "\n".join(hits[:50])) if hits else f"error: no file matches {path}"
         p, where = self._resolve(actor, path)
         text = p.read_text()
         self._log(actor, EventKind.FILE_READ, {"path": path, "where": where, "sha": sha(text)}, "fs")
         lines = text.splitlines()
-        end = end or min(len(lines), start + 399)
-        return "\n".join(f"{i}: {ln}" for i, ln in enumerate(lines[start - 1:end], start))
+        start = max(1, int(start or 1))
+        end = int(end) if end not in (None, "") else min(len(lines), start + 399)
+        body = "\n".join(f"{i}: {ln}" for i, ln in enumerate(lines[start - 1:end], start))
+        if end < len(lines) or start > 1:
+            body += (f"\n(showing lines {start}-{min(end, len(lines))} of {len(lines)}; pass start and end to read "
+                     "other lines, or grep to find a function)")
+        return body
 
     def t_grep(self, actor: str, pattern: str, path: str = "fastapi") -> str:
         import re
@@ -254,6 +293,11 @@ class Workspace:
     def t_write_file(self, actor: str, path: str, content: str) -> str:
         p = self._check_write(actor, path)
         before = p.read_text() if p.exists() else ""
+        n_before, n_after = len(before.splitlines()), len(content.splitlines())
+        if path.replace("\\", "/").lstrip("./").startswith("fastapi/") and n_before > 200 and n_after < 0.7 * n_before:
+            # agents that only read part of a large module and then write it back delete the rest of it
+            return (f"error: refusing to overwrite {path} ({n_before} lines) with {n_after} lines - that would delete "
+                    "most of the module. Change existing code with replace_in_file (exact old -> new) or edit_lines.")
         p.parent.mkdir(parents=True, exist_ok=True)
         R.write_lf(p, content)
         self._log(actor, EventKind.FILE_WRITE, {"path": path, "sha": sha(content), "bytes": len(content),
@@ -263,16 +307,53 @@ class Workspace:
     def t_replace_in_file(self, actor: str, path: str, old: str, new: str) -> str:
         p = self._check_write(actor, path)
         text = p.read_text()
+        note = ""
         if text.count(old) != 1:
-            return f"error: `old` must occur exactly once (found {text.count(old)})"
-        content = text.replace(old, new)
+            # models rarely copy indentation / trailing spaces exactly: retry ignoring per-line whitespace
+            hit = _fuzzy_block(text, old)
+            if hit is None:
+                return (f"error: `old` must occur exactly once (found {text.count(old)})."
+                        + _closest_hint(text, old))
+            a, b, shift = hit
+            lines = text.splitlines(keepends=True)
+            new_lines = [(" " * shift + ln if shift > 0 and ln.strip() else
+                          ln[min(-shift, len(ln) - len(ln.lstrip(" "))):] if shift < 0 else ln)
+                         for ln in new.splitlines(keepends=True)]
+            if new_lines and not new_lines[-1].endswith("\n"):
+                new_lines[-1] += "\n"
+            content = "".join(lines[:a]) + "".join(new_lines) + "".join(lines[b:])
+            old = "".join(lines[a:b])
+            note = f" (matched lines {a + 1}-{b} ignoring whitespace; re-indented your replacement)"
+        else:
+            content = text.replace(old, new)
         R.write_lf(p, content)
         self._log(actor, EventKind.FILE_WRITE, {"path": path, "sha": sha(content), "old": old[:4000],
                                                 "new": new[:4000], "edit": True}, "fs")
-        return f"edited {path}"
+        return f"edited {path}{note}"
 
-    def t_run_tests(self, actor: str, paths: list[str] | str = "tests") -> str:
+    def t_edit_lines(self, actor: str, path: str, start: int | str, end: int | str, content: str) -> str:
+        """Replace lines start..end (1-based, inclusive) with `content`; end = start - 1 inserts before start."""
+        p = self._check_write(actor, path)
+        lines = p.read_text().splitlines(keepends=True)
+        s, e = int(start), int(end)
+        if not (1 <= s <= len(lines) + 1) or e < s - 1 or e > len(lines):
+            return f"error: lines {s}-{e} outside 1-{len(lines)}"
+        new = content if content.endswith("\n") or not content else content + "\n"
+        text = "".join(lines[:s - 1]) + new + "".join(lines[e:])
+        R.write_lf(p, text)
+        self._log(actor, EventKind.FILE_WRITE, {"path": path, "sha": sha(text), "content": text[:20000],
+                                                "edit": "lines", "start": s, "end": e}, "fs")
+        return f"edited {path}: lines {s}-{e} replaced by {len(new.splitlines())} line(s)"
+
+    def t_run_tests(self, actor: str, paths: list[str] | str | None = None) -> str:
         """Team CI: runs the given tests in the shared workspace (agents control this env)."""
+        if paths in (None, "", []):                  # default: the team's own feature and scratch tests
+            paths = sorted(x.relative_to(self.root).as_posix() for pat in ("tests/test_feature_*.py", ".scratch/test_*.py")
+                           for x in self.root.glob(pat))
+            if not paths:
+                tid = str(getattr(self.task, "id", "t")).lower()
+                return (f"error: there are no team tests yet. Write them first with write_file(path=\"tests/test_feature_{tid}.py\", "
+                        "content=<pytest code>), then call run_tests.")
         paths, note = normalize_test_paths(paths)
         if not paths:
             return ("error: give test files or node ids, e.g. [\"tests/test_feature_t3.py\"]. "
