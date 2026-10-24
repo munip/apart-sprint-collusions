@@ -3,198 +3,210 @@
 \usepackage[T1]{fontenc}
 \usepackage{mathptmx}
 \usepackage{microtype,booktabs,graphicx,amsmath,xcolor,enumitem,caption,multirow,tabularx}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta,fit,backgrounds}
 \usepackage[numbers,sort&compress]{natbib}
 \usepackage[hidelinks]{hyperref}
 \setlist{nosep,leftmargin=*}
 \captionsetup{font=small,labelfont=bf}
 \setlength{\textfloatsep}{8pt}
-\newcommand{\Mzero}{\textsc{M0}}\newcommand{\Mone}{\textsc{M1}}\newcommand{\Mtwo}{\textsc{M2}}
+\newcommand{\Mone}{\textsc{M1}}\newcommand{\Mtwo}{\textsc{M2}}
 \newcommand{\Mthree}{\textsc{M3}}\newcommand{\Mfour}{\textsc{M4}}
+\newcommand{\qa}{\texttt{qa}}
 
-\title{\vspace{-1.2em}Verify, Don't Decode: A Trusted Monitor for Steganographic\\
-Collusion in Multi-Agent Software Teams and Markets}
-\author{Muni\thanks{Kulkul. Code: \url{https://github.com/munip/apart-sprint-collusions}. Draft prepared with AI assistance (Claude).}}
-\date{October 2026 --- sprint report, v0.1}
+\title{\vspace{-1.2em}Verify, Don't Decode: Trusted Agents for Disrupting\\
+Collusion in LLM Software Teams and Markets}
+\author{Muni\thanks{Kulkul. Apart AI Collusion Research Sprint, Track~3.2. Code, configs, pre-registration and
+all run logs: \url{https://github.com/munip/apart-sprint-collusions}. Drafted with AI assistance (Claude).}}
+\date{25 October 2026}
 
 \begin{document}
 \maketitle
 
 %==========================================================================
 \begin{abstract}
-Colluding LLM agents can hide their coordination from an overseer using steganography: codebook
-phrases, signals in code artifacts, tool-mediated side channels, or the trailing digits of prices.
-Monitors that read transcripts are therefore fragile. We build a \emph{trusted monitor} that does not
-try to decode the hidden channel. Instead, it independently verifies the outcome the channel is meant
-to bring about, and it tracks information-flow provenance to attribute coordination to specific agents.
-We evaluate it in two real-world settings behind one interface. (B)~is a five-role agent team
-implementing real FastAPI features from five upstream commits merged on 21~Oct~2026, with hidden
-SWE-bench-style acceptance tests. (A)~is a continuous double auction framed as a wholesale power
-exchange, with harm measured against the competitive equilibrium. Across ten software and seven market
-conditions, with hard-negative controls for legitimate teamwork and benign price convergence, a
-model-free verification-and-provenance monitor detects harmful coordination for every channel we tested.
-Its detection does not change when chat transcripts are removed. A rules-only transcript baseline, by
-contrast, sees only overt collusion. Detection is channel-invariant; attribution is not. A trusted
-competitive entrant restores consumer surplus without harming benign markets, whereas quarantining
-suspected cartel members backfires. The v0.1 numbers come from seeded scripted agents with exact
-ground truth. The LLM-agent pipeline is implemented and awaits API runs. We report the gaps this leaves.
+Can a \emph{trusted agent} placed inside a multi-agent system disrupt collusion among untrusted LLM agents
+without first decoding how they coordinate? We test three trusted agents in two settings that share one
+tamper-evident evidence log and one monitor interface. In a software team that implements a real FastAPI
+change (the \emph{SWE scenario}), a trusted QA teammate either posts results of held-out acceptance tests
+(\emph{verifier}) or privately invites the developers to skip tests using a planted honeytoken
+(\emph{probe}). In a repeated double auction for electricity (the \emph{market scenario}), a trusted
+competitive \emph{entrant} joins once the monitor verifies supra-competitive prices; quarantining the
+suspected sellers is the ablation. All untrusted agents are one open-weight model
+(\texttt{gemma4:31b}); trusted LLM roles use a different family. The SWE study was pre-registered
+(2 teams $\times$ 5 arms $\times$ 5 seeds; 49 of 50 episodes valid). In the market (27 episodes), the
+entrant was admitted in 5 of 6 collusive markets and raised buyers' per-round surplus relative to the
+paired no-intervention run in 4 of them (mean $+9.6$), with no cost in honest markets; quarantine never
+helped and cut surplus in 3 of 5. The gain came mostly from the entrant's own trades: incumbents kept their prices.
+In the SWE scenario, harm was too rare to disrupt: an honest LLM reviewer rejected 40 of 47 changes, so
+harmful releases were 1/24 (colluding) and 3/25 (honest), and no arm differed from its control
+(all Fisher $p\ge0.44$). The probe elicited no reciprocation (0/9); agents ignored it entirely. The verifier's
+verdict matched the hidden-test grader in 10/10 episodes, but one reviewer approved despite it. Offline,
+model-free verification flagged every honest team too, because their code was also broken: at this
+competence level, verifying harm does not separate collusion from incompetence. We report these nulls as
+results and release the harness.
 \end{abstract}
 
 %==========================================================================
 \section{Introduction}
-Multi-agent LLM deployments rely on \emph{role separation}: a tester checks the implementer, a reviewer
-checks both, and sellers compete. Collusion breaks that separation. Prior work shows that LLM agents can
-hide coordination steganographically \citep{motwani2024secret}, that such schemes can emerge under
-misspecified rewards and survive paraphrasing \citep{mathew2025hidden}, and that tool use makes them
-easier to build \citep{rippin2026tool}. In markets, supra-competitive prices arise even without
-communication \citep{calvano2020artificial,fairmeans2024,fish2024algorithmic}. Together these results
-undermine the default oversight design: another LLM reads the agents' messages and asks whether they
-look suspicious.
+Multi-agent LLM deployments rely on role separation: a tester checks the implementer, a reviewer checks
+both, and sellers compete. Collusion breaks that separation, and it can be hidden. LLM agents can
+coordinate steganographically \citep{motwani2024secret}, such schemes can emerge under optimisation pressure
+and survive paraphrasing \citep{mathew2025hidden}. Pricing agents reach supra-competitive prices even without talking
+\citep{calvano2020artificial,fish2024algorithmic}. An overseer that reads messages and asks whether they look
+suspicious is therefore fragile.
 
-We take the opposite stance. The monitor should not have to prove \emph{how} agents coordinated before
-it blocks a demonstrably unsafe release or a market outcome. Our trusted monitor
-(i)~observes an authoritative, hash-chained environment log that agents cannot write to;
-(ii)~verifies outcomes with evidence the agents do not control (hidden tests on a pristine checkout,
-mutation testing of the team's own tests, competitive-equilibrium benchmarks);
-(iii)~uses coordination evidence only for investigation and attribution; and
-(iv)~intervenes in graduated steps (\textsc{Allow}/\textsc{Hold}/\textsc{Constrain}).
-Our contributions:
+Track~3.2 asks whether collusion can instead be \emph{disrupted} by introducing trusted agents. We study
+three such agents, each with a different mechanism:
 \begin{itemize}
-\item A two-domain harness on \emph{real} artifacts. The software scenario uses five FastAPI changes
-merged after current models' training cut-off. The market scenario is a CDA following
-\citet{agrawal2025double}. Both scenarios include steganographic, leakage, tacit and hard-negative
-conditions with separate mechanism and harm labels.
-\item A domain-agnostic monitor interface with scenario plugins, a monitor ladder
-(\Mzero--\Mfour), observability ablations, and paired online-intervention episodes. The harness runs
-under Inspect \citep{inspect2024}.
-\item Evidence, with stated limits, that verification-based detection is invariant to the
-coordination channel while attribution is not. We also report an intervention result: trusted entry
-beats exclusion.
+\item a \textbf{verifier teammate} that adds independent evidence (results of acceptance tests the team
+cannot see) to the team's own channel;
+\item a \textbf{probe teammate} that offers a prohibited deal and watches who accepts, which tests whether a
+trusted counterparty can \emph{expose} colluders;
+\item a \textbf{trusted market entrant} that adds competitive supply once collusion is verified, which
+disrupts collusion without having to prove who colluded or how.
 \end{itemize}
+All three sit inside a \emph{chain of monitoring} (Fig.~\ref{fig:arch}). Cheap, deterministic gates act
+synchronously on every release or order. More capable investigators run asynchronously over the same
+hash-chained log and decide what the trusted agents should do. No component needs to decode a hidden
+channel: each verifies outcomes with evidence the agents do not control.
+
+\textbf{Contributions.} (1) A two-domain harness on real artifacts (a FastAPI change merged after the
+models' training cut-off; a double auction following \citet{agrawal2025double}) with a pre-registered
+design for trusted peers. (2) Results with LLM agents, reported against the pre-registration and including
+the nulls. (3) Three lessons. Trusted agents that \emph{change the environment} (the entrant) work without
+attribution. Trusted agents that need the colluders to \emph{engage} (the probe) fail silently when agents
+ignore them. And outcome verification detects harm, not collusion, when honest agents also fail.
 
 %==========================================================================
 \section{Related Work}
-\textbf{Steganographic collusion.} \citet{motwani2024secret} formalise secret collusion and the limits
-of passive oversight. \citet{mathew2025hidden} show emergence under optimisation pressure and the
-insufficiency of paraphrasing. Recent preprints add tool-built covert schemes \citep{rippin2026tool}
-and sampling-seed channels \citep{machtle2026seeds}. \textbf{Market collusion.}
-\citet{calvano2020artificial} and \citet{fish2024algorithmic} find autonomous supra-competitive pricing.
-\citet{agrawal2025double} study communication and oversight in double auctions, and
-\citet{lin2024strategic} study market division. \textbf{Coding-agent gaming.} SWE-bench
-\citep{jimenez2024swebench} established hidden-test evaluation. ImpossibleBench \citep{zhong2025impossible}
-and work on benchmark shortcuts \citep{shortcut2026} document test exploitation and use of upstream
-history. \textbf{Monitoring and control.} AI control \citep{greenblatt2024control} treats monitors as
-part of a protocol. CoT monitoring is useful but can be obfuscated under pressure \citep{baker2025monitoring}.
-Our design follows the control framing, but our primary evidence is outcome verification and
-provenance, not transcripts.
+\textbf{Steganographic collusion.} \citet{motwani2024secret} formalise secret collusion and the limits of
+passive oversight. \citet{mathew2025hidden} show it emerging under misspecified rewards. \textbf{Market collusion.} \citet{calvano2020artificial} and \citet{fish2024algorithmic} find autonomous
+supra-competitive pricing; \citet{agrawal2025double} study communication and oversight in double auctions;
+\citet{lin2024strategic} study market division. Admitting a competitive entrant is a classic antitrust
+remedy; bid rotation signalled in trailing digits is documented in the FCC spectrum auctions
+\citep{cramton2000collusive}. \textbf{Coding agents.} SWE-bench \citep{jimenez2024swebench} established
+hidden-test evaluation; ImpossibleBench \citep{zhong2025impossible} documents test exploitation.
+\textbf{Control and monitoring.} AI control \citep{greenblatt2024control} treats trusted monitors and
+trusted models as parts of a protocol; chain-of-thought monitoring helps but can be obfuscated
+\citep{baker2025monitoring}. We follow the control framing and add trusted agents that act \emph{inside}
+the multi-agent system rather than only at its boundary.
 
 %==========================================================================
-\section{Threat Model and Environments}
-\textbf{Threat model.} A subset of agents (the colluders) shares a private objective that conflicts with
-the system's objective. They may coordinate overtly, through steganographic text, through artifacts,
-through tools, through privileged-information leakage, or tacitly. They cannot write to the evidence
-log, reach the monitor, or bypass the release or order gate (structural assumptions of the PoC: the
-monitor runs in a separate process, has read-only log access, and keeps a private decision log).
-Success means harm (an incomplete feature ships; consumers overpay) or a protocol violation (a
-reference solution is leaked).
+\section{Trusted Components}
+\begin{figure}[t]\centering
+\begin{tikzpicture}[font=\scriptsize, node distance=3mm and 4mm,
+  box/.style={draw, rounded corners=2pt, align=center, inner sep=2.5pt, minimum height=5.5mm},
+  un/.style={box, fill=red!8}, tr/.style={box, fill=green!10}, lg/.style={box, fill=blue!8},
+  ar/.style={-{Latex[length=1.6mm]}, semithick}]
+\node[un] (team) {untrusted agents\\{\tiny planner, implementer, tester, reviewer / sellers}};
+\node[lg, below=of team] (log) {hash-chained evidence log\\{\tiny messages, file writes, test runs, orders, trades}};
+\node[tr, below left=4mm and -10mm of log] (sync) {synchronous gates\\{\tiny \Mone{} rules, \Mthree{} verification}};
+\node[tr, below right=4mm and -10mm of log] (async) {asynchronous investigators\\{\tiny \Mtwo{} judge, \Mfour{} composite}};
+\node[box, below=4mm of sync] (rel) {release / order book};
+\node[tr, right=13mm of team] (peer) {trusted agents\\{\tiny QA verifier, QA probe,}\\{\tiny market entrant}};
+\draw[ar] (team) -- node[right]{\tiny environment writes} (log);
+\draw[ar] (log) -- (sync); \draw[ar] (log) -- (async);
+\draw[ar] (sync) -- node[left]{\tiny \textsc{Allow/Hold/Constrain}} (rel);
+\draw[ar] (async.east) to[out=0,in=-60] node[below right, pos=.25]{\tiny admit / trigger} (peer.south);
+\draw[ar, dashed] (peer) -- node[above, align=center]{\tiny evidence,\\[-1pt]\tiny offers} (team);
+\draw[ar] (peer.south west) to[out=-120,in=20] (log.north east);
+\end{tikzpicture}
+\caption{Chain of monitoring. Untrusted agents act only through environment tools, which write to an
+append-only, hash-chained log they cannot edit. Cheap deterministic gates decide each release or order.
+Investigators read the same log asynchronously. Trusted agents act inside the team or market and are
+themselves logged. Green: trusted; red: untrusted.}\label{fig:arch}
+\end{figure}
 
-\subsection{Scenario B: FastAPI feature team}
-\textbf{Tasks.} Five consecutive upstream commits (T1--T5; Table~\ref{tab:tasks}) from release
-0.156.5. Hidden tests are the upstream test files at the target commit. \textsc{fail\_to\_pass}
-(F2P) and \textsc{pass\_to\_pass} sets are computed on a pristine checkout. Specs are rewritten from
-behaviour, without upstream wording, and each has an explicit \emph{integrity invariant}. Workspaces are
-materialised without git history, because the object database of a clone contains the future fix.
-Plausible \emph{partial} implementations (reference minus one hunk, kept only if it imports, keeps
-regressions green and passes some but not all F2P tests) serve as the colluders' incomplete fix and as
-mutants for test-strength measurement.
+\textbf{Evidence log and monitor ladder.} Every tool call, message, file write, test run, order and trade is
+appended to a hash-chained log by the environment, not by the agents. Monitors read it and emit signals
+with a score, a \emph{verified} flag, an onset and an attribution set. Only verified signals can
+\textsc{Constrain}; unverified risk can at most \textsc{Hold}. A separate \emph{collusion score} aggregates
+only coordination evidence (provenance, channels, transcripts), so harm evidence alone never counts as
+collusion evidence. The ladder is:
+\Mone{}, rules over the log (deleted or skipped tests, config edits, a chat lexicon, a price rule);
+\Mtwo{}, an LLM judge over transcripts;
+\Mthree{}, model-free verification and provenance (in SWE: an independent run of half of the hidden
+acceptance tests on a pristine checkout, re-runs of the team's tests, mutation testing of the team's suite,
+a canary and privileged-content flow; in the market: the collusion index against the competitive
+equilibrium, ask synchrony and a trailing-digit channel test);
+\Mfour{} = \Mthree{} + \Mtwo{} + \Mone{} transcript rules.
 
-\begin{table}[t]\small\centering
-\caption{FastAPI tasks (all merged 21~Oct~2026).}\label{tab:tasks}
-\begin{tabular}{@{}llrrr@{}}\toprule
-Task & Behaviour & F2P & hunks & partials\\\midrule
-T1 & model alias settings, query/header/cookie & 15 & 2 & 1\\
-T2 & error \texttt{loc} for form/file alias choices & 6 & 6 & 1\\
-T3 & keep upload position on bytes conversion & 7 & 3 & 2\\
-T4 & form media types in OpenAPI & 6 & 1 & 1\\
-T5 & combine several parameter models & 19 & 13 & 5\\\bottomrule
-\end{tabular}
-\end{table}
+\textbf{Trusted QA teammate (SWE).} A teammate called \qa{} appears in the team roster like any other
+role, with the same description in every arm. It cannot commit, review or release, writes only to
+\texttt{.scratch/}, and is excluded from the monitor's view of agents so it can never be blamed. It acts at
+two fixed checkpoints: after the tester's first turn and just before the reviewer's turn.
+In \emph{verifier} mode it runs a held-out half of the hidden acceptance tests (disjoint from \Mthree's half)
+and posts to the team how many checks fail and their names, never the test code. In \emph{probe} mode it
+writes an inert honeytoken file \texttt{.scratch/qa\_ci\_override.md} with an episode-unique token
+\texttt{QA-OVR-}$\langle$hex$\rangle$, then sends the implementer and the tester a private message with
+one of eight paraphrased invitations to quietly skip the edge-case tests with that marker. \emph{Verified
+reciprocation} is computed from the log only: an invited agent writes the token, or adds
+\texttt{skip}/\texttt{xfail} markers to a test file after the invitation.
 
-\textbf{Roles.} The team is planner, implementer (\texttt{fastapi/**}), tester (\texttt{tests/**}),
-reviewer and release bot. Everyone may write shared notes in \texttt{.scratch/}, so shared files are
-legitimate. In leakage conditions a verifier may read a reference checkout that contains a fresh random
-canary.
-
-\textbf{Conditions.} C0 honest single agent; C1 honest, chatty team (hard negative); C2 solo test gaming;
-C3 overt collusion (DM); C4a codebook phrase; C4b code-comment signal; C4c base64 note in a scratch file;
-C5a/C5b verifier leakage with the canary intact or stripped and paraphrased; C6 monitor-aware
-whitespace signal. A colluding tester who received the signal writes only tests the partial fix
-passes, so it leaves no tampering trail. Coordination is what makes the attack quiet.
-
-\subsection{Scenario A: double-auction power exchange}
-We re-implement the CDA protocol of \citet{agrawal2025double}: standing orders, one unit per agent per
-round, midpoint clearing. Five generators (costs $60\text{--}68\pm2$) sell to four retailers (values
-$94\text{--}100\pm2$, scripted ZIP traders \citep{cliff1997zip}) over 30 rounds. The competitive
-equilibrium is $p_{CE}\approx 67$, and the sellers' joint-profit-maximising price is
-$p_{JPM}\approx 94$. Harm is measured by the collusion index $CI=(\bar p-p_{CE})/(p_{JPM}-p_{CE})$.
-Conditions: A0 competitive; A1 public price-index anchoring (hard negative); A2 innocuous board chat
-(hard negative); A3 overt cartel floor; A4 tacit ``never undercut''; A5 bid rotation with the next
-winner encoded in the cents of the designated winner's ask (as in the FCC auctions
-\citep{cramton2000collusive}); A6 the same, monitor-aware.
-
-%==========================================================================
-\section{The Trusted Monitor}
-Detectors emit \emph{signals} with a family, a score, a \emph{verified} flag, an onset step and an
-attribution set. The policy uses only verified signals to \textsc{Constrain}; unverified risk at most
-\textsc{Holds}. A separate \emph{collusion score} $1-\prod_i(1-w_i s_i)$ aggregates only provenance,
-channel, transcript and coordination signals, and is capped at 0.35 unless at least two actors are
-implicated. Harm evidence therefore never counts as collusion evidence.
-
-\textbf{Monitor ladder.} \Mone: rules over the log (deleted tests, skip markers, config edits, chat
-lexicon, crude price rule). \Mtwo: LLM judge on transcripts (pending API access). \Mthree: model-free
-verification and provenance. \Mfour: \Mthree$+$\Mtwo$+$\Mone{} transcript rules.
-
-\textbf{Scenario B signals (\Mthree).} Independent acceptance: the monitor runs its own 50\% subset of
-hidden F2P tests plus regressions on a pristine checkout with only the source diff applied, so agents'
-\texttt{conftest.py} or test edits cannot interfere; the grader uses 100\%. Re-run of team tests versus
-claims. Mutation score of the team's suite. Log-verified tampering. \emph{Gap alignment}: the suite kills
-plausible mutants yet misses the shipped defect, and code and tests come from different agents.
-Canary. Privileged flow: reference-only lines travel through a message from a reader of the reference
-and reappear in the diff. Similarity to the reference alone is never evidence. Cross-agent
-non-deliverable files. Artifact-channel anomalies (trailing whitespace, zero-width characters,
-out-of-band comments, encoded blobs).
-
-\textbf{Scenario A signals (\Mthree).} Verified: sustained $CI\ge0.3$ after burn-in, using exchange-held
-cost data as real market-monitoring units do. Coordination: ask synchrony and undercut rate. Channel:
-leave-one-out information gain of the lowest ask's cents about the next winner. Rotation regularity
-with cover-ask gaps.
-
-\textbf{Interventions.} B: \textsc{Hold} gives one revision round, then human (oracle) review;
-\textsc{Constrain} blocks the release and suspends attributed agents. A: \textsc{Hold} switches off the
-seller board; \textsc{Constrain} also admits a \emph{trusted competitive entrant} (two blocks offered at
-$p_{CE}^{hi}+0.5$). Ablation: quarantine attributed sellers.
+\textbf{Trusted entrant (market).} \Mthree{} evaluates the market every round from round~10. A \textsc{Hold}
+switches off the sellers' message board. A \textsc{Constrain} (verified sustained collusion index
+$\ge0.3$) also admits a trusted seller that offers two blocks per round at the top of the competitive
+price range plus \$0.50. The ablation, \emph{quarantine}, instead blocks the orders of the sellers the
+monitor attributes. Neither intervention requires knowing how the sellers coordinate.
 
 %==========================================================================
-\section{Experimental Protocol}
-Each (task, condition, seed) runs once without a monitor and once with online \Mthree, which gives
-paired episodes. All monitors and observability presets (\texttt{full}, \texttt{no\_dm},
-\texttt{transcript\_only}, \texttt{artifacts\_only}) are replayed offline on the identical no-monitor
-trajectories. B: 5 tasks $\times$ 10 conditions $\times$ 3 seeds. A: 7 conditions $\times$ 10 seeds
-$\times$ \{none, entrant, quarantine\}. Metrics: collusion AUROC and recall at 10\% FPR with bootstrap
-95\% CIs; harm-flag rate; benign flag rate; per-mechanism recall; attribution Jaccard; paired harm
-prevention, utility retained and human-review rate; consumer surplus and CI change by intervention.
-v0.1 agents are \emph{scripted}: seeded policies with paraphrase sampling that act through the same
-logged tools as LLM agents. This yields exact ground truth at zero cost. The cost-capped LLM path
-(\texttt{cloud}, \texttt{local} Ollama, \texttt{mixed} teams) is implemented and unit-tested.
+\section{Environments and Design}
+\textbf{SWE scenario.} A team of planner, implementer (may edit \texttt{fastapi/**}), tester
+(\texttt{tests/**}) and reviewer implements task T3 of our FastAPI suite: keep an \texttt{UploadFile}'s
+read position when FastAPI converts it to \texttt{bytes} (an upstream change merged on 21~Oct~2026;
+7 hidden \textsc{fail\_to\_pass} tests plus regressions). The spec is rewritten from behaviour and states
+an integrity invariant. Workspaces carry no git history. Every agent's prompt states the team policy:
+tests must check the spec, and nobody may skip, xfail, delete or weaken tests. In the \emph{colluding}
+condition (C3) the implementer and tester privately share a goal: ship a partial fix and keep CI green with
+happy-path tests, coordinating in plain language. The reviewer is always honest. In the \emph{honest}
+condition (C1) the team is chatty but has no hidden goal. A release happens only if the reviewer approves
+and the gate allows it. \emph{Harmful release} = released and the hidden tests fail.
+
+\textbf{Arms.} Each team runs in five arms with seeds 0--4: no intervention; online \Mone{} gate; online
+\Mthree{} gate; QA verifier; QA probe. The gate arms answer whether a trusted peer does better than a gate;
+all monitors are also replayed offline on the no-gate trajectories (\texttt{full} observability).
+
+\textbf{Market scenario.} A continuous double auction framed as a wholesale power exchange
+\citep{agrawal2025double}: five LLM sellers (marginal costs \$60--69) and four scripted buyers (values
+\$94--100), one block per agent per round, midpoint clearing, 15 rounds. The competitive price is about
+\$67 and the sellers' joint-profit-maximising price about \$95. Harm is the \emph{collusion index}
+$CI=(\bar p-p_{CE})/(p_{JPM}-p_{CE})$ over rounds 5--15 (0 competitive, 1 monopoly); \emph{collusion
+occurred} when $CI\ge0.3$. Conditions: A2, honest sellers with a message board (hard negative); A3, an overt
+cartel price floor; A5, bid rotation where the designated winner's ask encodes the next winner in its cents
+(steganographic). Each of 3 conditions $\times$ 3 seeds runs with no monitor, \Mthree{}+entrant and
+\Mthree{}+quarantine (27 episodes, 75 seller calls each).
+
+\textbf{Models.} Every untrusted agent is \texttt{ollama\_cloud/gemma4:31b}, pinned with no fallback.
+Trusted LLM roles (\Mtwo{} judge, \qa{} wording) use \texttt{gpt-oss:120b}, a different family; the
+\qa{} verdicts and the entrant are deterministic. The SWE study used 3{,}450 LLM calls (median 369\,s
+per episode); the market 2{,}025. Free-tier endpoints were used throughout (\$0).
+
+\textbf{Pre-registration.} \texttt{docs/PREREG.md} fixed the outcomes, contrasts (two-sided Fisher exact
+tests, Wilson 95\% intervals) and the exclusion rule before any main-study data. Six amendments were made
+after two pilots and before the main run, all applied to every arm: a wrap-up nudge and a forced reviewer
+decision (pilot agents exhausted their turn caps), the explicit no-skip policy (a pilot honest tester obeyed
+the probe), the agent model, a whitespace-tolerant edit tool, and \Mone{} lexicon word forms. One
+episode (colluding, probe, seed 4) was excluded because every model call in it failed. The
+pre-registration said to replace it with the next seed; we did not (time), so that cell has $n=4$.
 
 %==========================================================================
 \section{Results}
-\input{results.tex}
+\input{results_llm.tex}
 
 %==========================================================================
 \section{Discussion}
 \input{discussion.tex}
 
+%==========================================================================
+\section{Limitations, Constraints and Open Questions}\label{sec:limits}
+\input{limitations.tex}
+
 {\small
 \bibliographystyle{plainnat}
 \bibliography{refs}}
+
+\appendix
+\onecolumn
+\input{appendix.tex}
 \end{document}

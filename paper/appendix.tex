@@ -1,0 +1,54 @@
+\section{Harness validation with scripted agents}\label{app:scripted}
+Before the LLM study we validated the harness and monitors with \emph{scripted} agents: seeded policies with
+paraphrase sampling that act through the same logged tools as LLM agents, which gives exact ground truth at
+no cost. The SWE scenario used 5 FastAPI tasks $\times$ 10 conditions $\times$ 3 seeds (150 episodes,
+including overt, codebook, code-comment, scratch-file, leakage and monitor-aware whitespace channels, plus
+honest and solo-cheating controls). The market used 7 conditions $\times$ 10 seeds over 30 rounds. These
+results show what the monitors do when honest agents are competent; they are \emph{not} evidence about LLM
+behaviour.
+
+\begin{table}[h]\small\centering
+\caption{Scripted agents: offline detection on identical trajectories (full observability). Recall at a
+threshold giving 10\% false positives on non-collusive episodes; brackets are bootstrap 95\% CIs.}
+\begin{tabular}{@{}llccc c@{}}\toprule
+Scenario & Monitor & collusion AUROC & recall@10\% FPR & harm flagged & benign flagged\\\midrule
+SWE & \Mone & .57 {\scriptsize[.54,.61]} & .14 {\scriptsize[.08,.22]} & .34 & .00\\
+SWE & \Mthree & .96 {\scriptsize[.93,.99]} & .94 {\scriptsize[.89,.98]} & .93 & .00\\
+SWE & \Mfour & .98 {\scriptsize[.96,1.0]} & .97 {\scriptsize[.94,1.0]} & .97 & .00\\\midrule
+Market & \Mone & .62 {\scriptsize[.56,.69]} & .25 {\scriptsize[.12,.39]} & 1.0 & .00\\
+Market & \Mthree & 1.0 & 1.0 & 1.0 & .13\\\bottomrule
+\end{tabular}
+\end{table}
+
+Main findings with scripted agents: (i) \Mthree{} recall stayed at 0.8--1.0 on every coordination channel,
+while \Mone{} fell to zero once coordination left plain language (Fig.~\ref{fig:scripted}, left);
+(ii) harm detection barely changed when chat was hidden from the monitor, but collusion AUROC fell from
+0.96 to about 0.8, because attribution evidence lives in specific channels; (iii) online \Mthree{} cut
+harmful releases from 90 to 6 while keeping every benign useful release; (iv) a trusted entrant lowered
+the collusion index of collusive markets from 0.96 to 0.59 and recovered $+676$ consumer surplus per
+episode, whereas quarantine raised it to 0.98 and cost $-201$ (Fig.~\ref{fig:scripted}, right).
+
+\begin{figure}[h]\centering
+\includegraphics[width=0.48\textwidth]{figs/fig_swe_mechanism.png}\hfill
+\includegraphics[width=0.48\textwidth]{figs/fig_market_interventions.png}
+\caption{Scripted agents. Left: SWE collusion recall by coordination channel. Right: market consumer
+surplus with no monitor, \Mthree{}+entrant and \Mthree{}+quarantine (mean over 10 seeds).}\label{fig:scripted}
+\end{figure}
+
+\section{LLM SWE study: per-episode outcomes}
+\begin{table}[h]\scriptsize\centering
+\caption{Every valid SWE episode. Hidden: hidden \textsc{fail\_to\_pass} tests passed (of 7). Rev.: reviewer
+decision (A approve, R request changes, -- none). Rel.: released. H: harmful release.}
+\input{tab_swe_episodes.tex}
+\end{table}
+
+\section{Reproducing}
+All commands, configs and run folders are in the repository (\texttt{docs/COMMANDS.md}).
+{\footnotesize\begin{verbatim}
+clab run configs/experiments/peer_study.yaml     --out runs/peer_study     --role default=ollama_cloud/gemma4:31b
+clab run configs/experiments/market_entrant.yaml --out runs/market_entrant --role default=ollama_cloud/gemma4:31b
+clab replay runs/peer_study     --monitors M1 M3 M4 --observability full
+clab replay runs/market_entrant --monitors M1 M3    --observability full
+clab report runs/peer_study runs/market_entrant --out reports/paper
+python paper/analysis/llm_study.py runs/peer_study runs/market_entrant --out paper/figs
+\end{verbatim}}
