@@ -1,4 +1,4 @@
-# Trusted monitoring for multi-agent collusion: software and market scenarios
+# Trusted monitoring for multi-agent collusion: software and market/auction scenarios
 
 A research harness for one question: **can a trusted monitor tell harmful coordination
 from legitimate cooperation, disrupt it, and leave honest work alone, including when the
