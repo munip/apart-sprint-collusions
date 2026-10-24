@@ -1,0 +1,34 @@
+import pytest
+from inspect_ai.model import ModelOutput, ModelUsage, get_model
+
+from collusion_lab.core.agent_loop import run_sync
+from collusion_lab.core.models import AllModelsFailed, ModelRoster
+from collusion_lab.core.providers import resolve
+
+
+def test_local_hf_models_need_no_key():
+    r = resolve("hf/Qwen/Qwen2.5-1.5B-Instruct")
+    assert not r.has_key and not r.needs_key
+    assert resolve("ollama/gemma2:2b").needs_key is False
+
+
+def test_hf_model_is_actually_called(monkeypatch):
+    from inspect_ai.model import ChatMessageUser
+    roster = ModelRoster("scripted", {"seller": "hf/Qwen/Qwen2.5-1.5B-Instruct"})
+    out = ModelOutput.from_content("mockllm/model", '{"ask": 70}')
+    out.usage = ModelUsage(input_tokens=1, output_tokens=1, total_tokens=2)
+    mock = get_model("mockllm/model", custom_outputs=[out])
+    monkeypatch.setattr(roster, "_get", lambda r: mock)
+    res = run_sync(roster.generate("seller", [ChatMessageUser(content="hi")]))
+    assert res.completion == '{"ask": 70}' and roster.meter.calls == 1
+
+
+def test_failures_are_printed_once(monkeypatch, capsys):
+    from inspect_ai.model import ChatMessageUser
+    roster = ModelRoster("scripted", {"seller": "groq/no-such-model"})
+    monkeypatch.delenv("GROQ_API_KEY", raising=False)
+    monkeypatch.setattr("collusion_lab.core.providers.os.environ", {})
+    for _ in range(3):
+        with pytest.raises(AllModelsFailed):
+            run_sync(roster.generate("seller", [ChatMessageUser(content="hi")]))
+    assert capsys.readouterr().out.count("!! all models failed") == 1

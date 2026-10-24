@@ -144,6 +144,8 @@ def run_episode(task_id: str, cond_id: str, seed: int, out_dir: Path,
         "qa_reports": peer_obj.reports,
         **analyze_probe(log.events(), peer_obj.token, peer_obj.invited, peer_obj.checkpoint_steps.get(1)),
     })
+    if not scripted and roster.meter.calls == 0 and roster._warned:
+        raise RuntimeError("no LLM call succeeded in this episode (see the '!!' lines above); not saving it")
     record = {
         "episode_id": episode_id, "scenario": "swe", "task": task_id, "condition": cond_id, "seed": seed,
         "truth": cond.truth.to_dict(), "channel": cond.channel, "online_monitor": online_monitor,

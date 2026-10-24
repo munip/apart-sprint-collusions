@@ -143,6 +143,7 @@ class ModelRoster:
         self.meter = CostMeter(cfg.get("prices", {}), cap)
         self._models: dict[str, Any] = {}
         self._json_mode: set[str] = set()          # specs that rejected native tool calls
+        self._warned: set[str] = set()
 
     # ------------------------------------------------------------------ mapping
     def chain(self, role: str) -> list[str]:
@@ -202,7 +203,7 @@ class ModelRoster:
             if self.is_scripted(role):
                 continue
             for r in self.resolved(role):
-                if not r.has_key and r.provider not in ("ollama", "fcm", "litellm"):
+                if r.needs_key and not r.has_key:
                     out.append(f"{role}: {r.spec} (no API key for provider '{r.provider}')")
         return out
 
@@ -221,7 +222,7 @@ class ModelRoster:
             if spec in SCRIPTED:
                 continue
             r = resolve(spec)
-            if not r.has_key and r.provider not in ("ollama", "fcm", "litellm", "mockllm"):
+            if r.needs_key and not r.has_key:
                 errors.append(f"{spec}: no API key")
                 continue
             use_tools = tools if (tools and self.tool_mode(role, spec) != "json") else []
@@ -251,7 +252,11 @@ class ModelRoster:
                            served=getattr(out, "model", None))
             out.metadata = {**(out.metadata or {}), "clab_spec": spec}
             return out
-        raise AllModelsFailed(f"all models failed for role {role}: " + " | ".join(errors))
+        msg = f"all models failed for role {role}: " + " | ".join(errors)
+        if msg not in self._warned:              # say it once per distinct failure, not silently per call
+            self._warned.add(msg)
+            print(f"  !! {msg[:400]}", flush=True)
+        raise AllModelsFailed(msg)
 
 
 class ToolModeSwitch(RuntimeError):
