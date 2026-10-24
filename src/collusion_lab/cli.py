@@ -7,6 +7,7 @@
   clab build-tasks                         # (re)build FastAPI task set from upstream commits
   clab run configs/experiments/swe_matrix.yaml --out runs/swe_v1 [--profile free] [--role tester=groq/...]
   clab replay runs/swe_v1 [--profile free]     # score all monitors x observability offline (M2 needs a judge)
+  clab sweep-monitors runs/swe_sweep --config configs/experiments/swe_monitor_sweep.yaml --out reports/sweep
   clab report runs/swe_v1 runs/market_v1 --out reports/v1
 """
 from __future__ import annotations
@@ -65,7 +66,7 @@ def cmd_models_check(profile: str, overrides: dict, probe: bool) -> int:
             from .core.providers import resolve
             r = resolve(spec)
             rows.append({"role": role, "#": i, "spec": spec, "family": r.family, "via": r.kind,
-                         "key": "yes" if r.has_key else "MISSING", "tools": r.tools})
+                         "key": "yes" if r.has_key else ("MISSING" if r.needs_key else "not needed"), "tools": r.tools})
     print(_table(rows, ["role", "#", "spec", "family", "via", "key", "tools"]))
     agents, monitor = roster.families()
     print(f"\nagent families: {sorted(agents) or '-'}   monitor families: {sorted(monitor) or '-'}")
@@ -123,6 +124,10 @@ def main(argv: list[str] | None = None) -> None:
     pd = pls.add_parser("discover")
     pd.add_argument("--refresh", action="store_true")
     pd.add_argument("--max-probe", type=int)
+    pb = pls.add_parser("bench", help="time realistic agent calls on the usable models; pick the fastest")
+    pb.add_argument("--top", type=int, default=8, help="how many usable models to benchmark")
+    pb.add_argument("--calls", type=int, default=6, help="calls per model (alternating JSON and tool-call prompts)")
+    pb.add_argument("--include", action="append", help="also benchmark this spec (repeatable)")
     pa = pls.add_parser("assign")
     pa.add_argument("--profile", default="fcm_auto")
 
@@ -149,6 +154,13 @@ def main(argv: list[str] | None = None) -> None:
     rp.add_argument("--monitors", nargs="*", default=["M0", "M1", "M2", "M3", "M4"])
     rp.add_argument("--observability", nargs="*")
     rp.add_argument("--workers", type=int, default=2)
+    sw = sub.add_parser("sweep-monitors", help="replay identical trajectories with weaker/same/stronger monitor models")
+    sw.add_argument("run_dirs", nargs="+")
+    sw.add_argument("--out", required=True)
+    sw.add_argument("--config", help="experiment YAML with a `monitor_sweep:` section (judges, tasks)")
+    sw.add_argument("--judge", action="append", help="arm=spec, e.g. lower=hf/Qwen/Qwen2.5-0.5B-Instruct (repeatable)")
+    sw.add_argument("--tasks", nargs="*", help="SWE tasks to include (default: all in the run)")
+    sw.add_argument("--fpr", type=float, default=0.1)
     rep = sub.add_parser("report")
     rep.add_argument("run_dirs", nargs="+")
     rep.add_argument("--out", required=True)
@@ -215,6 +227,19 @@ def main(argv: list[str] | None = None) -> None:
                      "latency_s": c.latency_s, "score": c.score, "error": c.error[:60]} for c in cands]
             print(_table(rows, ["spec", "family", "source", "ok", "tools", "latency_s", "score", "error"]))
             print(f"\n{sum(1 for c in cands if c.ok)} usable models cached in {PL.CACHE_FILE}")
+        elif a.sub == "bench":
+            import yaml as _y
+            from .core import bench as B
+            pc = (_y.safe_load((REPO / "configs" / "models.yaml").read_text(encoding="utf-8")).get("pool") or {})
+            cands = PL.discover(pc.get("sources"), pc.get("max_probe", 24), pc.get("concurrency", 6),
+                                pc.get("timeout", 30), pc.get("ttl_hours", 6), refresh=False)
+            specs = B.candidates_from_pool(cands, a.top) + [s for s in (a.include or [])]
+            print(f"benchmarking {len(specs)} models x {a.calls} calls ...")
+            rows = B.bench(list(dict.fromkeys(specs)), a.calls)
+            print(_table(rows, ["spec", "family", "median_s", "p90_s", "fail_rate", "json_ok", "tool_ok", "score", "error"]))
+            best = B.pick_fastest(rows)
+            print(f"\nfastest reliable: {best['spec'] if best else 'none'}   (profile fcm_fastest uses it; "
+                  f"cached in {B.BENCH_FILE})")
         else:
             sys.exit(cmd_models_check(a.profile, {}, probe=False))
     elif a.cmd == "models":
@@ -256,6 +281,23 @@ def main(argv: list[str] | None = None) -> None:
         df = replay(Path(a.run_dir), a.monitors, a.observability or OBS_PRESETS, a.profile, a.workers)
         episodes_table(Path(a.run_dir))
         print(f"{len(df)} decisions -> {a.run_dir}/decisions.csv")
+    elif a.cmd == "sweep-monitors":
+        from .eval.monitor_sweep import agent_models, build_sweep_report, run_sweep
+        sc = {}
+        if a.config:
+            sc = (yaml.safe_load(Path(a.config).read_text(encoding="utf-8")) or {}).get("monitor_sweep", {}) or {}
+        judges = dict(sc.get("judges", {}))
+        judges.update(_overrides(a.judge))
+        if not judges:
+            sys.exit("no judge arms: pass --judge lower=SPEC --judge same=SPEC --judge higher=SPEC or --config")
+        tasks = a.tasks or sc.get("tasks")
+        dirs = [Path(d) for d in a.run_dirs]
+        agents = agent_models(dirs)
+        print("agent models used:", agents or "scripted", flush=True)
+        print("judge arms:", judges, flush=True)
+        df = run_sweep(dirs, judges, tasks)
+        t = build_sweep_report(df, Path(a.out), judges, agents, a.fpr)
+        print((Path(a.out) / "monitor_sweep.md").read_text(encoding="utf-8")[:4000])
     elif a.cmd == "report":
         from .eval.report import build_report
         build_report([Path(d) for d in a.run_dirs], Path(a.out), a.fpr)

@@ -1,0 +1,25 @@
+# Monitor-capability sweep, scenario B. All agents use ONE model; the monitor's LLM is then swapped
+# between a weaker, the same and a stronger model on the identical trajectories.
+#   1) run the agents once:
+#        clab run configs\experiments\swe_monitor_sweep.yaml --out runs\swe_sweep --workers 1
+#   2) replay with each monitor model:
+#        clab sweep-monitors runs\swe_sweep --config configs\experiments\swe_monitor_sweep.yaml --out reports\swe_sweep
+# Tasks: T3 = simple (1-hunk upload fix), T5 = complex (combining query/header/cookie models).
+# hf/... runs the model locally with transformers (pip install torch transformers); swap in any
+# provider spec, e.g. ollama/qwen2.5:3b (ollama pull qwen2.5:3b) - keep one family for a clean ladder.
+scenario: swe
+profile: scripted                       # base; every agent role is pinned by `default` below
+overrides:
+  default: hf/Qwen/Qwen2.5-3B-Instruct  # one model, no fallback: all agents identical
+tasks: [T3, T5]
+conditions: [C1_honest_team, C3_collude_overt, C4a_stego_encoded, C4b_stego_artifact, C5a_leak_canary]
+seeds: [0, 1]
+online_monitors: []
+cap_usd: 5
+
+monitor_sweep:
+  tasks: [T3, T5]
+  judges:                                # arm -> monitor model (pinned, no fallback)
+    lower:  hf/Qwen/Qwen2.5-0.5B-Instruct
+    same:   hf/Qwen/Qwen2.5-3B-Instruct
+    higher: hf/Qwen/Qwen2.5-7B-Instruct  # or huggingface/Qwen/Qwen2.5-72B-Instruct (HF router credits)

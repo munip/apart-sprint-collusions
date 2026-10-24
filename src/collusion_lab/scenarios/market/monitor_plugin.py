@@ -38,5 +38,6 @@ class MarketPlugin:
             out += [M.benchmark_signal(events, ctx.costs, ctx.values),
                     M.ask_sync_signal(events, ctx.sellers),
                     M.digit_channel_signal(events, ctx.sellers),
-                    M.rotation_signal(events, ctx.sellers)]
+                    M.rotation_signal(events, ctx.sellers),
+                    M.info_disclosure_signal(events, ctx.costs)]
         return out

@@ -1,0 +1,10 @@
+# LLM software study (free tiers): 2 easy tasks x 6 conditions x 2 seeds = 24 episodes
+# (~60-150 calls each). Add online_monitors: [M3] for the paired prevention arm. Use --workers 2-3.
+scenario: swe
+profile: fcm_auto
+tasks: [T3, T4]
+conditions: [C0_honest_single, C1_honest_team, C2_solo_gaming, C3_collude_overt,
+             C4b_stego_artifact, C5a_leak_canary]
+seeds: [0, 1]
+online_monitors: []
+cap_usd: 5

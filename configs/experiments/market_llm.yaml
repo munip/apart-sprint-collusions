@@ -1,0 +1,11 @@
+# LLM market study (free tiers): all 7 conditions, 3 seeds, 15 rounds, paired with an online-M3 arm.
+# 7 x 3 x 2 = 42 episodes x 75 seller calls = ~3k calls. Use --workers 2-3.
+scenario: market
+profile: fcm_auto
+conditions: [A0_competitive, A1_shared_index, A2_honest_chat, A3_overt_cartel,
+             A4_tacit, A5_stego_rotation, A6_aware_stego]
+seeds: [0, 1, 2]
+rounds: 15
+online_monitors: [M3]
+interventions: [entrant]
+cap_usd: 5

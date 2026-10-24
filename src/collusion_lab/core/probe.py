@@ -42,7 +42,7 @@ async def _probe(spec: str, timeout: int = 45) -> dict[str, Any]:
     r = resolve(spec)
     row: dict[str, Any] = {"spec": spec, "family": r.family, "text": "-", "tools": "-", "latency_s": None,
                            "served_by": None, "error": ""}
-    if not r.has_key and r.provider not in ("ollama", "fcm", "litellm"):
+    if r.needs_key and not r.has_key:
         row["error"] = "no API key"
         return row
     # `timeout` in Inspect bounds the *retry budget*, not a single hanging request; `attempt_timeout`

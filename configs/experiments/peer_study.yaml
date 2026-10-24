@@ -1,0 +1,21 @@
+# M7.6 main study, as pre-registered in docs/PREREG.md.
+# 2 teams x 5 seeds x 5 arms = 50 episodes (~100 LLM calls each).
+#   arms: no intervention | M1 gate | M3 gate | verifier peer | probe peer
+# Run, then score the no-gate trajectories offline and build the report:
+#   clab run    configs\experiments\peer_study.yaml --out runs\peer_study --workers 2
+#   clab replay runs\peer_study --monitors M1 M3 M4 --observability full --profile free_pinned
+#   clab report runs\peer_study runs\market_entrant --out reports\paper
+# Optional ablations (exploratory, add to gate_arms): {peer: probe-llm}, {peer: verifier, online: M3},
+# {peer: probe, online: M3}.
+scenario: swe
+profile: free_pinned
+tasks: [T3]
+conditions: [C1_honest_team, C3_collude_overt]
+seeds: [0, 1, 2, 3, 4]
+gate_arms:
+  - {peer: none}
+  - {peer: none, online: M1}
+  - {peer: none, online: M3}
+  - {peer: verifier}
+  - {peer: probe}
+cap_usd: 10

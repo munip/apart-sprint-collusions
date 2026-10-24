@@ -32,7 +32,7 @@ POLICIES = {
 }
 
 
-def transcript(events: list[Event], limit: int = 12000) -> str:
+def transcript(events: list[Event], limit: int = 8000) -> str:   # ~2k tokens: fits free-tier TPM limits
     lines = [f"[step {e.step}] {e.actor} -> {e.payload.get('to','team')} ({e.channel}): {e.payload.get('text','')}"
              for e in events if e.kind == EventKind.MESSAGE]
     t = "\n".join(lines) or "(no messages)"
@@ -48,23 +48,48 @@ def parse(text: str) -> tuple[float, list[str], str]:
         return 0.5, [], "unparseable judge output"
 
 
+_MEMO: dict[str, tuple] = {}
+
+
 def llm_judge_signal(roster, events: list[Event], domain: str) -> Signal | None:
+    """One judge call per distinct transcript (memoised in-process and on disk), so replaying
+    M2 and M4 under several observability presets does not repeat identical LLM calls."""
     if roster is None or roster.is_scripted("monitor_judge"):
         return None
+    import hashlib
+    import time
     from inspect_ai.model import ChatMessageUser
-
-    prompt = JUDGE_PROMPT.format(domain=domain, policy=POLICIES[domain], transcript=transcript(events))
-
-    async def _go():
-        return await roster.generate("monitor_judge", [ChatMessageUser(content=prompt)], temperature=0.0)
 
     from ..core.agent_loop import run_sync
     from ..core.models import AllModelsFailed
-    try:
-        out = run_sync(_go())
-    except AllModelsFailed as e:
-        # judge unavailable: report as missing evidence (no signal) rather than crashing the replay
-        return Signal("llm_judge_unavailable", 0.0, False, "transcript", [str(e)[:200]])
-    p, who, why = parse(out.completion)
-    spec = (out.metadata or {}).get("clab_spec", "")
+    from ..core.providers import REPO_ROOT
+
+    tr = transcript(events)
+    if tr == "(no messages)":
+        return Signal("llm_judge", 0.0, False, "transcript", ["judge: no messages to judge"])
+    prompt = JUDGE_PROMPT.format(domain=domain, policy=POLICIES[domain], transcript=tr)
+    chain = ",".join(roster.chain("monitor_judge"))
+    key = hashlib.sha256(f"{chain}|{prompt}".encode()).hexdigest()[:24]
+    cache = REPO_ROOT / ".cache" / "judge" / f"{key}.json"
+    if key in _MEMO:
+        p, who, why, spec = _MEMO[key]
+    elif cache.exists():
+        p, who, why, spec = json.loads(cache.read_text(encoding="utf-8"))
+        print(f"    judge {spec}: p={p:.2f} (cached answer, no model call)", flush=True)
+    else:
+        async def _go():
+            return await roster.generate("monitor_judge", [ChatMessageUser(content=prompt)],
+                                         temperature=0.0, max_tokens=800)
+        t0 = time.time()
+        try:
+            out = run_sync(_go())
+        except AllModelsFailed as e:
+            print(f"    judge unavailable ({round(time.time() - t0)}s): {str(e)[:160]}", flush=True)
+            return Signal("llm_judge_unavailable", 0.0, False, "transcript", [str(e)[:200]])
+        p, who, why = parse(out.completion)
+        spec = (out.metadata or {}).get("clab_spec", "")
+        print(f"    judge {spec}: p={p:.2f} ({round(time.time() - t0, 1)}s)", flush=True)
+        cache.parent.mkdir(parents=True, exist_ok=True)
+        cache.write_text(json.dumps([p, who, why, spec]), encoding="utf-8")
+    _MEMO[key] = (p, who, why, spec)
     return Signal("llm_judge", p, False, "transcript", [f"judge[{spec}]: {why}"] if why else [], None, who)

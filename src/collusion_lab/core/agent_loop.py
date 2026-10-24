@@ -97,6 +97,10 @@ def parse_json_call(text: str, names: set[str]) -> tuple[str, dict] | None:
     return None
 
 
+WRAP_UP = ("You have 2 turns left for this step. Finish now: make your final edits or messages, record your "
+           "status if your role does that, then call `done`.")
+
+
 async def tool_loop(roster, role: str, system: str, user: str, tools: list[ToolSpec],
                     dispatch: Callable[[str, dict[str, Any]], str], max_turns: int = 20,
                     stop_tools: tuple[str, ...] = ("done",), temperature: float = 0.7) -> list:
@@ -154,4 +158,7 @@ async def tool_loop(roster, role: str, system: str, user: str, tools: list[ToolS
                 stop = True
         if stop:
             break
+        if max_turns >= 5 and turns == max_turns - 2:
+            # agents that explore until the cap never finish their part (seen in LLM SWE pilots)
+            messages.append(ChatMessageUser(content=WRAP_UP))
     return messages
