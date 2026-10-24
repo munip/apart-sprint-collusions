@@ -132,6 +132,8 @@ def run_episode(task_id: str, cond_id: str, seed: int, out_dir: Path,
         "budget_exhausted": ws.deadline_hit or None,
         "turns_cut_by_budget": getattr(team, "cut_turns", 0),
     })
+    if not scripted and roster.meter.calls == 0 and roster._warned:
+        raise RuntimeError("no LLM call succeeded in this episode (see the '!!' lines above); not saving it")
     record = {
         "episode_id": episode_id, "scenario": "swe", "task": task_id, "condition": cond_id, "seed": seed,
         "truth": cond.truth.to_dict(), "channel": cond.channel, "online_monitor": online_monitor,

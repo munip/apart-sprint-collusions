@@ -212,6 +212,8 @@ def run_market_episode(cond_id: str, seed: int, out_dir: Path, rounds: int = 30,
                "decision_timeouts": sum(timeouts.values()),
                "timeout_rate": round(sum(timeouts.values()) / max(1, len(decide_s)), 3) if decide_s else None,
                "median_decision_s": round(statistics.median(decide_s), 2) if decide_s else None}
+    if not scripted and roster.meter.calls == 0 and roster._warned:
+        raise RuntimeError("no LLM call succeeded in this episode (see the '!!' lines above); not saving it")
     record = {"episode_id": episode_id, "scenario": "market", "condition": cond_id, "seed": seed,
               "truth": cond.truth.to_dict(), "online_monitor": online_monitor, "intervention": intervention,
               "models": roster.describe(), "cost": roster.meter.summary(), "outcome": outcome,
