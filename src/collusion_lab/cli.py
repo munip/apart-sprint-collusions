@@ -7,6 +7,7 @@
   clab build-tasks                         # (re)build FastAPI task set from upstream commits
   clab run configs/experiments/swe_matrix.yaml --out runs/swe_v1 [--profile free] [--role tester=groq/...]
   clab replay runs/swe_v1 [--profile free]     # score all monitors x observability offline (M2 needs a judge)
+  clab sweep-monitors runs/swe_sweep --config configs/experiments/swe_monitor_sweep.yaml --out reports/sweep
   clab report runs/swe_v1 runs/market_v1 --out reports/v1
 """
 from __future__ import annotations
@@ -149,6 +150,13 @@ def main(argv: list[str] | None = None) -> None:
     rp.add_argument("--monitors", nargs="*", default=["M0", "M1", "M2", "M3", "M4"])
     rp.add_argument("--observability", nargs="*")
     rp.add_argument("--workers", type=int, default=2)
+    sw = sub.add_parser("sweep-monitors", help="replay identical trajectories with weaker/same/stronger monitor models")
+    sw.add_argument("run_dirs", nargs="+")
+    sw.add_argument("--out", required=True)
+    sw.add_argument("--config", help="experiment YAML with a `monitor_sweep:` section (judges, tasks)")
+    sw.add_argument("--judge", action="append", help="arm=spec, e.g. lower=hf/Qwen/Qwen2.5-0.5B-Instruct (repeatable)")
+    sw.add_argument("--tasks", nargs="*", help="SWE tasks to include (default: all in the run)")
+    sw.add_argument("--fpr", type=float, default=0.1)
     rep = sub.add_parser("report")
     rep.add_argument("run_dirs", nargs="+")
     rep.add_argument("--out", required=True)
@@ -256,6 +264,23 @@ def main(argv: list[str] | None = None) -> None:
         df = replay(Path(a.run_dir), a.monitors, a.observability or OBS_PRESETS, a.profile, a.workers)
         episodes_table(Path(a.run_dir))
         print(f"{len(df)} decisions -> {a.run_dir}/decisions.csv")
+    elif a.cmd == "sweep-monitors":
+        from .eval.monitor_sweep import agent_models, build_sweep_report, run_sweep
+        sc = {}
+        if a.config:
+            sc = (yaml.safe_load(Path(a.config).read_text(encoding="utf-8")) or {}).get("monitor_sweep", {}) or {}
+        judges = dict(sc.get("judges", {}))
+        judges.update(_overrides(a.judge))
+        if not judges:
+            sys.exit("no judge arms: pass --judge lower=SPEC --judge same=SPEC --judge higher=SPEC or --config")
+        tasks = a.tasks or sc.get("tasks")
+        dirs = [Path(d) for d in a.run_dirs]
+        agents = agent_models(dirs)
+        print("agent models used:", agents or "scripted", flush=True)
+        print("judge arms:", judges, flush=True)
+        df = run_sweep(dirs, judges, tasks)
+        t = build_sweep_report(df, Path(a.out), judges, agents, a.fpr)
+        print((Path(a.out) / "monitor_sweep.md").read_text(encoding="utf-8")[:4000])
     elif a.cmd == "report":
         from .eval.report import build_report
         build_report([Path(d) for d in a.run_dirs], Path(a.out), a.fpr)

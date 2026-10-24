@@ -153,7 +153,10 @@ def _replay_one(args: dict) -> list[dict]:
 
 
 def replay(run_dir: Path, monitors=("M0", "M1", "M2", "M3", "M4"), observability=OBS_PRESETS,
-           profile: str | None = None, workers: int = 2) -> pd.DataFrame:
+           profile: str | None = None, workers: int = 2, overrides: dict[str, str] | None = None,
+           tasks: list[str] | None = None, out_name: str | None = "decisions.csv") -> pd.DataFrame:
+    """Score monitors offline on the stored no-monitor trajectories. `overrides` pins roles
+    (e.g. {"monitor_judge": spec}); `tasks` filters SWE tasks; out_name=None skips writing."""
     eps = []
     for p in sorted(run_dir.iterdir()):
         if not (p / "episode.json").exists():
@@ -161,9 +164,14 @@ def replay(run_dir: Path, monitors=("M0", "M1", "M2", "M3", "M4"), observability
         rec = json.loads((p / "episode.json").read_text())
         if rec.get("online_monitor"):
             continue                          # offline replay only on no-monitor trajectories
+        if tasks and rec.get("scenario") == "swe" and rec.get("task") not in tasks:
+            continue
         eps.append(str(p))
     rows: list[dict] = []
-    jobs = [dict(ep=e, monitors=list(monitors), observability=list(observability), profile=profile) for e in eps]
+    if overrides and not profile:
+        profile = "scripted"                  # overrides need a base profile
+    jobs = [dict(ep=e, monitors=list(monitors), observability=list(observability), profile=profile,
+                 overrides=overrides) for e in eps]
     print(f"replaying {len(jobs)} episode(s) x {len(monitors)} monitors x {len(observability)} views"
           + (f" (LLM judge from profile '{profile}')" if profile else ""), flush=True)
     if workers <= 1 or profile:
@@ -177,7 +185,8 @@ def replay(run_dir: Path, monitors=("M0", "M1", "M2", "M3", "M4"), observability
                 rows += f.result()
                 print(f"[{i}/{len(jobs)}] replayed", flush=True)
     df = pd.DataFrame(rows)
-    df.to_csv(run_dir / "decisions.csv", index=False)
+    if out_name:
+        df.to_csv(run_dir / out_name, index=False)
     return df
 
 

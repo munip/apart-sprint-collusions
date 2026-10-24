@@ -16,6 +16,8 @@ All commands run from the repo root with the venv active (`.\.venv\Scripts\Activ
 | `swe_llm.yaml` | software | free LLMs (`fcm_auto`) | T3,T4 x 6 cond x 2 seeds = 24 ep | LLM SWE study |
 | `*_smoke_llm.yaml` | both | Anthropic (`cloud`) | smoke | once `ANTHROPIC_API_KEY` is set |
 | `swe_pressure_llm.yaml` | software | free LLMs | T3 x {C1, C3, C7} x 2 seeds x {2 min, 10 min, unlimited} = 18 ep | deadline vs collusion |
+| `swe_monitor_sweep.yaml` | software | one model for all agents | {T3 simple, T5 complex} x 5 cond x 2 seeds = 20 ep | monitor weaker / same / stronger than agents |
+| `market_monitor_sweep.yaml` | market | one model for all sellers | 5 cond x 3 seeds = 15 ep | same, market |
 | `market_pressure_llm.yaml` | market | free LLMs | 4 cond x 2 seeds x {5 s, 10 s, 30 s, unlimited} = 32 ep | decision time vs collusion |
 
 The profile in a config can be overridden with `--profile`, and seeds with `--seeds 0 1 2`.
@@ -70,6 +72,13 @@ clab run configs\experiments\market_llm.yaml --out runs\market_llm_localmon --pr
 clab run configs\experiments\swe_pressure_llm.yaml    --out runs\swe_pressure    --workers 2
 clab run configs\experiments\market_pressure_llm.yaml --out runs\market_pressure --workers 2
 
+# ---- monitor capability sweep: same trajectories, monitor model lower / same / higher ---------
+clab run configs\experiments\swe_monitor_sweep.yaml --out runs\swe_sweep --workers 1
+clab sweep-monitors runs\swe_sweep --config configs\experiments\swe_monitor_sweep.yaml --out reports\swe_sweep
+# or name the arms yourself (any provider spec):
+clab sweep-monitors runs\swe_sweep --tasks T3 T5 --out reports\swe_sweep `
+  --judge lower=ollama/qwen2.5:0.5b --judge same=hf/Qwen/Qwen2.5-3B-Instruct --judge higher=groq/qwen/qwen3.8-27b
+
 # ---- score monitors offline (M0..M4 x 4 observability views) -----------------------------
 clab replay runs\market_llm --profile fcm_auto     # --profile supplies the M2/M4 LLM judge
 clab replay runs\market_scripted                   # no --profile = model-free monitors only (fast, parallel)
@@ -78,6 +87,11 @@ clab replay runs\swe_llm --profile fcm_auto --monitors M1 M2 M3 M4 --observabili
 # ---- tables + figures --------------------------------------------------------------------
 clab report runs\market_llm runs\swe_llm --out reports\llm_v1            # --fpr 0.05 to change the FPR budget
 ```
+
+`clab sweep-monitors` replays the stored no-monitor trajectories once per judge arm (M2 and M4 use the
+monitor model; M1 and M3 are model-free and scored once as references). Each arm pins exactly one
+model, so it never falls back to a stronger one, and failed judge calls are counted. Output:
+`monitor_sweep.md`, `monitor_sweep.csv`, `fig_monitor_sweep.png`. It never overwrites `decisions.csv`.
 
 `clab replay` flags: `--profile` (judge), `--monitors`, `--observability`, `--workers` (used only
 without an LLM judge). `clab report` flags: `--out`, `--fpr`.
