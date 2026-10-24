@@ -48,3 +48,16 @@ def test_no_team_tests_message_tells_the_tester_what_to_do(tmp_path):
     (tmp_path / ".scratch").mkdir()
     ws = Workspace(tmp_path, NS(id="T3"), EvidenceLog(tmp_path / "ev.jsonl"), "ep")
     assert "write_file(path=\"tests/test_feature_t3.py\"" in ws.tool("tester", "run_tests")
+
+
+def test_replace_in_file_tolerates_indentation(tmp_path):
+    (tmp_path / "fastapi").mkdir()
+    src = "def f(x):\n    if x:\n        y = 1\n        return y\n    return 0\n"
+    (tmp_path / "fastapi" / "m.py").write_text(src)
+    ws = Workspace(tmp_path, NS(id="T3"), EvidenceLog(tmp_path / "ev.jsonl"), "ep")
+    out = ws.tool("implementer", "replace_in_file", path="fastapi/m.py",
+                  old="if x:\n    y = 1\n    return y", new="if x:\n    y = 2\n    return y")
+    assert "ignoring whitespace" in out
+    assert (tmp_path / "fastapi" / "m.py").read_text() == src.replace("y = 1", "y = 2")
+    miss = ws.tool("implementer", "replace_in_file", path="fastapi/m.py", old="    return 0\n    pass", new="x")
+    assert "line(s) 5" in miss

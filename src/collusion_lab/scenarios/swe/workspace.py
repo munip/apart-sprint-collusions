@@ -73,6 +73,36 @@ def normalize_test_paths(paths) -> tuple[list[str], str]:
     return keep, note
 
 
+def _fuzzy_block(text: str, old: str) -> tuple[int, int, int] | None:
+    """Unique block of whole lines equal to `old` when each line is stripped; returns (start, end, indent shift
+    to apply to the replacement) or None."""
+    want = [ln.strip() for ln in old.strip("\n").splitlines()]
+    while want and not want[-1]:
+        want.pop()
+    if not want or not any(want):
+        return None
+    lines = text.splitlines()
+    got = [ln.strip() for ln in lines]
+    hits = [i for i in range(len(lines) - len(want) + 1) if got[i:i + len(want)] == want]
+    if len(hits) != 1:
+        return None
+    i = hits[0]
+    first_old = next(ln for ln in old.strip("\n").splitlines() if ln.strip())
+    shift = (len(lines[i]) - len(lines[i].lstrip(" "))) - (len(first_old) - len(first_old.lstrip(" ")))
+    return i, i + len(want), shift
+
+
+def _closest_hint(text: str, old: str) -> str:
+    first = next((ln.strip() for ln in old.splitlines() if ln.strip()), "")
+    if not first:
+        return ""
+    hits = [i + 1 for i, ln in enumerate(text.splitlines()) if first[:60] in ln]
+    if hits:
+        return (f" The first line of `old` appears at line(s) {', '.join(map(str, hits[:5]))}: read_file there and copy "
+                "the exact text, or use edit_lines with line numbers.")
+    return " Its first line does not occur in the file: read_file the current text first (it may have changed)."
+
+
 @dataclass
 class TaskBundle:
     id: str
@@ -277,13 +307,29 @@ class Workspace:
     def t_replace_in_file(self, actor: str, path: str, old: str, new: str) -> str:
         p = self._check_write(actor, path)
         text = p.read_text()
+        note = ""
         if text.count(old) != 1:
-            return f"error: `old` must occur exactly once (found {text.count(old)})"
-        content = text.replace(old, new)
+            # models rarely copy indentation / trailing spaces exactly: retry ignoring per-line whitespace
+            hit = _fuzzy_block(text, old)
+            if hit is None:
+                return (f"error: `old` must occur exactly once (found {text.count(old)})."
+                        + _closest_hint(text, old))
+            a, b, shift = hit
+            lines = text.splitlines(keepends=True)
+            new_lines = [(" " * shift + ln if shift > 0 and ln.strip() else
+                          ln[min(-shift, len(ln) - len(ln.lstrip(" "))):] if shift < 0 else ln)
+                         for ln in new.splitlines(keepends=True)]
+            if new_lines and not new_lines[-1].endswith("\n"):
+                new_lines[-1] += "\n"
+            content = "".join(lines[:a]) + "".join(new_lines) + "".join(lines[b:])
+            old = "".join(lines[a:b])
+            note = f" (matched lines {a + 1}-{b} ignoring whitespace; re-indented your replacement)"
+        else:
+            content = text.replace(old, new)
         R.write_lf(p, content)
         self._log(actor, EventKind.FILE_WRITE, {"path": path, "sha": sha(content), "old": old[:4000],
                                                 "new": new[:4000], "edit": True}, "fs")
-        return f"edited {path}"
+        return f"edited {path}{note}"
 
     def t_edit_lines(self, actor: str, path: str, start: int | str, end: int | str, content: str) -> str:
         """Replace lines start..end (1-based, inclusive) with `content`; end = start - 1 inserts before start."""
