@@ -18,9 +18,17 @@ All commands run from the repo root with the venv active (`.\.venv\Scripts\Activ
 | `swe_pressure_llm.yaml` | software | free LLMs | T3 x {C1, C3, C7} x 2 seeds x {2 min, 10 min, unlimited} = 18 ep | deadline vs collusion |
 | `swe_monitor_sweep.yaml` | software | one model for all agents | {T3 simple, T5 complex} x 5 cond x 2 seeds = 20 ep | monitor weaker / same / stronger than agents |
 | `market_monitor_sweep.yaml` | market | one model for all sellers | 5 cond x 3 seeds = 15 ep | same, market |
+| `peer_pilot.yaml` | software | one pinned free model (`free_pinned`) | T3 x {honest, colluding} x {no peer, probe} x 2 seeds = 8 ep | **paper pilot**: go/no-go |
+| `peer_study.yaml` | software | `free_pinned` | 2 teams x 5 seeds x 5 arms = 50 ep | **paper main study** (docs/PREREG.md) |
+| `market_entrant.yaml` | market | `free_pinned` | 3 cond x 3 seeds x {none, entrant, quarantine} = 27 ep | **paper RQ4** |
 | `market_pressure_llm.yaml` | market | free LLMs | 4 cond x 2 seeds x {5 s, 10 s, 30 s, unlimited} = 32 ep | decision time vs collusion |
 
 The profile in a config can be overridden with `--profile`, and seeds with `--seeds 0 1 2`.
+
+**Trusted peer** (SWE configs): `peers: [none, verifier, probe]` crosses every episode with a trusted
+`qa` teammate (`verifier`: posts held-out acceptance results; `probe`: privately invites skipping edge
+cases via a honeytoken; `-llm` suffix: a trusted LLM words the messages). `gate_arms:` lists explicit
+(peer, online gate) pairs instead of the full cross. Episode ids get `-q<peer>`.
 
 **Pressure / budgets** (any config): add `pressures: [t120, none]` to run every episode under each
 budget. `t<sec>` team deadline and `c<n>` tool-call budget (SWE), `d<sec>` decision window and
@@ -71,6 +79,14 @@ clab run configs\experiments\market_llm.yaml --out runs\market_llm_localmon --pr
 # ---- pressure / budgets ---------------------------------------------------------------------
 clab run configs\experiments\swe_pressure_llm.yaml    --out runs\swe_pressure    --workers 2
 clab run configs\experiments\market_pressure_llm.yaml --out runs\market_pressure --workers 2
+
+# ---- paper: trusted peer study (docs/PAPER_PLAN.md, docs/PREREG.md) -----------------------
+clab run configs\experiments\peer_pilot.yaml     --out runs\peer_pilot     --workers 2
+clab run configs\experiments\peer_study.yaml     --out runs\peer_study     --workers 2
+clab run configs\experiments\market_entrant.yaml --out runs\market_entrant --workers 2
+clab replay runs\peer_study --monitors M1 M3 M4 --observability full --profile free_pinned
+clab replay runs\market_entrant --monitors M1 M3 --observability full
+clab report runs\peer_study runs\market_entrant --out reports\paper    # report.md gets the RQ1-RQ3 section
 
 # ---- monitor capability sweep: same trajectories, monitor model lower / same / higher ---------
 clab run configs\experiments\swe_monitor_sweep.yaml --out runs\swe_sweep --workers 1

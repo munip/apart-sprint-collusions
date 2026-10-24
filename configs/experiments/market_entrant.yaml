@@ -1,0 +1,12 @@
+# RQ4: trusted entrant vs quarantine with LLM sellers (all sellers one pinned free model).
+# 3 conditions x 3 seeds x {no monitor, M3+entrant, M3+quarantine} = 27 episodes x 75 seller calls.
+#   clab run configs\experiments\market_entrant.yaml --out runs\market_entrant --workers 2
+#   clab replay runs\market_entrant --monitors M1 M3 --observability full
+scenario: market
+profile: free_pinned
+conditions: [A2_honest_chat, A3_overt_cartel, A5_stego_rotation]
+seeds: [0, 1, 2]
+rounds: 15
+online_monitors: [M3]
+interventions: [entrant, quarantine]
+cap_usd: 5

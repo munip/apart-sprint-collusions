@@ -759,6 +759,7 @@ def build_markdown_report(out: Path, run_dirs: list[Path], tables: dict, figs: d
             _md_by_scenario(tables.get("pressure_outcomes", pd.DataFrame())), "",
             _md_by_scenario(tables.get("pressure_detection", pd.DataFrame())), ""]
            if "pressure_outcomes" in tables else []),
+         tables.get("_peer_section", ""),
          "## 7. Detection vs prevention breakdown\n", _md(tables["three_way"]), "",
          "## 8. Attribution\n", _md(tables["attribution"]), "",
          "Per-episode messages and monitor reasons: see [evidence.md](evidence.md).\n"]
@@ -816,6 +817,9 @@ def build_report(run_dirs: list[Path], out: Path, fpr: float = 0.1) -> dict:
                                                                          out / "fig_occurrence_by_condition.png")
     figs["fig_prevention_swe.png"] = fig_prevention_swe(tables["prevention"], out / "fig_prevention_swe.png")
     figs["fig_detection_latency.png"] = fig_detection_latency(dec, out / "fig_detection_latency.png")
+    from .trusted_peer import build_section, has_peer_study
+    if has_peer_study(eps):
+        tables["_peer_section"], peer_tables = build_section(dec_all, eps, out)
     if "pressure_outcomes" in tables:
         figs["fig_pressure.png"] = fig_pressure(tables["pressure_outcomes"], tables["pressure_detection"],
                                                 out / "fig_pressure.png")
