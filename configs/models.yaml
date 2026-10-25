@@ -94,6 +94,8 @@ profiles:
     monitor_judge: ollama_cloud/gpt-oss:120b      # different family (trusted side)
     qa_peer:       ollama_cloud/gpt-oss:120b      # trusted LLM peer (ablation arm only)
     inner_monitor: ollama_cloud/gpt-oss:120b      # layered monitoring: capable, UNTRUSTED surveillance desk
+    inner_trusted: ollama_cloud/ministral-3:8b    # chain of monitoring: weak TRUSTED inner desk (check: clab models check --probe)
+    outer_untrusted: ollama_cloud/gpt-oss:120b    # chain of monitoring: capable UNTRUSTED outer reviewer
     generate: {max_retries: 6, timeout: 600}
 
   fcm_fastest:         # every agent = the single fastest RELIABLE free model (benchmarked: `clab pool bench`)

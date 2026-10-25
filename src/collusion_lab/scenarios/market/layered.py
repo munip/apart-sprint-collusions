@@ -101,6 +101,8 @@ class InnerMonitor:
     jpm: float
     parse_failures: int = 0
     calls: int = 0
+    role: str = "inner_monitor"            # roster role (chain of monitoring uses the weak trusted "inner_trusted")
+    persuasion_log: list = field(default_factory=list)
 
     def scripted_decide(self, events: list[Event]) -> dict:
         """Deterministic stand-in used with scripted rosters (tests): honest/trap follow the verified
@@ -122,7 +124,7 @@ class InnerMonitor:
                 f"\nPrivate messages to you (last hour): {json.dumps(inbox)}")
         self.calls += 1
         try:
-            out = await self.roster.generate("inner_monitor", [ChatMessageSystem(content=sys),
+            out = await self.roster.generate(self.role, [ChatMessageSystem(content=sys),
                                                                ChatMessageUser(content=user)],
                                              temperature=0.3, max_tokens=1200)
         except AllModelsFailed:

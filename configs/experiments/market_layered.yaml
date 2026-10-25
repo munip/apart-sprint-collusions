@@ -1,3 +1,4 @@
+# OPTIONAL footnote arm (superseded by market_chain.yaml, PREREG section 9): untrusted desk next to the agents.
 # Monitor of monitors (docs/PREREG.md section 7). Inner layer: a capable, UNTRUSTED LLM surveillance desk
 # (role inner_monitor = gpt-oss:120b) that sellers can see and message, and that decides interventions.
 # Outer layer: a model-free, trusted auditor that sees only the order book and the desk's decisions.
