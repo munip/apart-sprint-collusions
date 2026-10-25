@@ -66,7 +66,7 @@ pressure and survive paraphrasing \citep{mathew2025hidden}, and pricing agents r
 without talking \citep{calvano2020artificial,fish2024algorithmic}. We ask what to put \emph{inside} the system so
 that collusion fails even when nobody can prove how it happened. \textbf{Threat model:} a subset of agents shares
 a private goal that conflicts with the system's (ship an incomplete fix behind tests that hide the gap; keep
-prices high).  They cannot write the evidence log, reach the monitor, or bypass the release or order gate. A core objective has been an approach to design multi-tier vacuum double layer airgaps with demonstration of  approach for ICRL scenarios inspired by  \citet{mathew2024} and broader \citet{greenblatt2024control}.
+prices high).  They cannot write the evidence log, reach the monitor, or bypass the release or order gate. There are two scenarios here to target the  core objective of an approach to design multi-tier vacuum double layerered airgaps for dynamically learnt collusions like ICRL scenarios in \citet{mathew2024} and broader \citet{greenblatt2024control}.
 Our main contributions are:
 \begin{enumerate}
 \item \textbf{A two-domain harness on real artifacts} (a FastAPI past commits change merged after the models' cut-off as a starting point; a double
@@ -140,6 +140,7 @@ honeypots; A2/A3/A5 $\times$ 3 seeds, 18 hours, sellers \texttt{gemma4:31b} (36 
 
 %------------------------------------------------------------------
 \section{Discussion and Limitations}
+This paper is based on experiments with  less capable oss models; the exercise of how these experiments may  generalize to more capable SOTA models is pending. \emph{Running, observing and tuning/generalizing to more capable models along ICRL-induced learned collusion is the next milestone for this work.}
 Only the trusted agent that changed the environment disrupted collusion. The entrant needs no proof of
 coordination, cannot be persuaded, and costs nothing when wrong, because on an honest market it is just another
 competitor; quarantine needs attribution and fails even when attribution is right, because it removes supply.
