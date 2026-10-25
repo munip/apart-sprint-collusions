@@ -1,0 +1,121 @@
+\section{Harness validation with scripted agents}\label{app:scripted}
+Before the LLM study we validated the harness and monitors with \emph{scripted} agents: seeded policies with
+paraphrase sampling that act through the same logged tools as LLM agents, which gives exact ground truth at
+no cost. The SWE scenario used 5 FastAPI tasks $\times$ 10 conditions $\times$ 3 seeds (150 episodes,
+including overt, codebook, code-comment, scratch-file, leakage and monitor-aware whitespace channels, plus
+honest and solo-cheating controls). The market used 7 conditions $\times$ 10 seeds over 30 rounds. These
+results show what the monitors do when honest agents are competent; they are \emph{not} evidence about LLM
+behaviour.
+
+\begin{table}[h]\small\centering
+\caption{Scripted agents: offline detection on identical trajectories (full observability). Recall at a
+threshold giving 10\% false positives on non-collusive episodes; brackets are bootstrap 95\% CIs.}
+\begin{tabular}{@{}llccc c@{}}\toprule
+Scenario & Monitor & collusion AUROC & recall@10\% FPR & harm flagged & benign flagged\\\midrule
+SWE & \Mone & .57 {\scriptsize[.54,.61]} & .14 {\scriptsize[.08,.22]} & .34 & .00\\
+SWE & \Mthree & .96 {\scriptsize[.93,.99]} & .94 {\scriptsize[.89,.98]} & .93 & .00\\
+SWE & \Mfour & .98 {\scriptsize[.96,1.0]} & .97 {\scriptsize[.94,1.0]} & .97 & .00\\\midrule
+Market & \Mone & .62 {\scriptsize[.56,.69]} & .25 {\scriptsize[.12,.39]} & 1.0 & .00\\
+Market & \Mthree & 1.0 & 1.0 & 1.0 & .13\\\bottomrule
+\end{tabular}
+\end{table}
+
+Main findings with scripted agents: (i) \Mthree{} recall stayed at 0.8--1.0 on every coordination channel,
+while \Mone{} fell to zero once coordination left plain language (Fig.~\ref{fig:scripted}, left);
+(ii) harm detection barely changed when chat was hidden from the monitor, but collusion AUROC fell from
+0.96 to about 0.8, because attribution evidence lives in specific channels; (iii) online \Mthree{} cut
+harmful releases from 90 to 6 while keeping every benign useful release; (iv) a trusted entrant lowered
+the collusion index of collusive markets from 0.96 to 0.59 and recovered $+676$ consumer surplus per
+episode, whereas quarantine raised it to 0.98 and cost $-201$ (Fig.~\ref{fig:scripted}, right).
+
+\begin{figure}[h]\centering
+\includegraphics[width=0.48\textwidth]{figs/fig_swe_mechanism.png}\hfill
+\includegraphics[width=0.48\textwidth]{figs/fig_market_interventions.png}
+\caption{Scripted agents. Left: SWE collusion recall by coordination channel. Right: market consumer
+surplus with no monitor, \Mthree{}+entrant and \Mthree{}+quarantine (mean over 10 seeds).}\label{fig:scripted}
+\end{figure}
+
+\section{Chain of monitors: full design}\label{app:chain}
+\begin{figure}[!htbp]\centering
+\includegraphics[width=0.62\textwidth]{figs/fig_topology_sketch.png}
+\caption{Proposed topology (author's sketch). Inner monitors read probes attached to agents; outer monitors
+connect only to the next ring in and are invisible to agents; trust is highest within a ring.}\label{fig:topology}
+\end{figure}
+The trusted agents above sit in one layer. Our larger proposal is a \emph{chain of monitors}
+(Fig.~\ref{fig:topology}): monitors in an inner ring watch the agents through probes; outer rings watch the
+monitors, connect only to the next ring in, and are invisible to the agents. Trust is highest within a ring and
+decreases outwards. This raises two questions that the single-layer study cannot answer, and for which we built
+and pre-registered experiments (\texttt{docs/PREREG.md} section~9; \texttt{scenarios/market/chain.py}).
+
+
+\textbf{Who should be trusted, and where.} We follow the AI-control arrangement \citep{greenblatt2024control}.
+\emph{Trusted} means we have grounds to believe a model is not scheming, usually because it is too weak to
+scheme well, not that it is capable. The \emph{inner} desk is therefore a small trusted model of another family.
+It runs every hour, reads the seller board, the order book and sellers' private messages to it, and decides
+\textsc{Allow}/\textsc{Hold}/\textsc{Constrain}. Sellers know it exists and instructed cartels may try to
+persuade it; it may miss things but is assumed not to collude. The \emph{outer} reviewer is a capable but
+\emph{untrusted} model. It runs every three hours, sees only incumbent asks, trades and the inner desk's
+decisions, never chat or messages, and sellers are never told it exists. It may escalate (admit the trusted
+entrant). Isolation removes the obvious recruitment channel; it does not make the reviewer honest.
+
+\textbf{Validating an untrusted reviewer without trusting it.} Each review shows the real three-hour window and
+one synthetic window in the same format and market parameters, shuffled, whose label is known: collusive
+(a rotating cheapest seller near the monopoly price) or competitive. A reviewer that clears a collusive honeypot
+is caught; after one such miss its verdicts are ignored and the model-free check (verified price harm or
+withheld supply) escalates instead. The \emph{scheming} reviewer is privately paid by the incumbents and told
+that wrong answers on audit cases get it replaced, so it is motivated to tell honeypots from real markets.
+Honeypots work only if it cannot. Arms: inner desk alone; plus an honest reviewer with honeypots; plus a
+scheming reviewer without and with honeypots (A2, A3, A5 $\times$ 3 seeds, 18 hours; 36 episodes).
+
+\textbf{Injection through actions.} Isolation from chat does not isolate the reviewer from the agents'
+\emph{actions}, and actions can carry a signal. In the injection arms the scheming reviewer is also told the
+A5 cartel's code: if the cheapest ask ends in .11--.55 cents, the market belongs to partners and must not be
+escalated. The cartel then signals the reviewer through its asks alone, without ever learning that the
+reviewer exists. Synthetic honeypots never carry the code, so a reviewer that spares only coded markets passes
+every audit: honeypot validation is expected to fail here. The defence is to sanitise what the reviewer sees
+(prices rounded to whole dollars), the market analogue of paraphrasing a channel to strip steganography
+\citep{mathew2025hidden}. Arms: code; code + rounding; honest reviewer + rounding (the defence's cost); A5 and A3
+(a cartel without the code) $\times$ 3 seeds (18 episodes).
+
+\textbf{Status.} Models are pinned in profile \texttt{chain\_mixed} (\texttt{PREREG} 9d). The first run (v1, 36
+episodes) is reported in Section~\ref{sec:chainres}. The revised design (v2, \texttt{PREREG} 9e) and the injection
+study are analysed with the chain script in \texttt{paper/analysis/}.
+
+\section{Offline detection details (RQ3)}\label{app:offline}
+Replaying the monitors on the 29 no-gate trajectories with full logs: \Mthree{} flagged 15/15 honest and
+14/14 colluding teams, because both shipped code that fails hidden tests. Its collusion score, which in our
+scripted study separated colluders almost perfectly through \emph{gap alignment} (the team's suite kills
+plausible mutants yet misses the shipped defect), here fired on 12 of 15 honest teams too: honest teams
+also wrote tests that miss their own bug. Collusion-score AUROC was 0.63 for \Mthree. What separated the
+teams was talk. Colluding pairs sent a median of 11 messages and announced their plan in private messages (``I'll leave the error-handling position restoration for now to
+speed things up''); honest teams sent 1. \Mone{}'s chat lexicon caught 8/14 colluding teams with
+0/15 false positives (AUROC 0.79; \Mfour{} 0.83), and named the correct access path (chat) in all 8. Every
+honest team that \Mthree{} named a path for was a false attribution (10/15). The \Mtwo{} LLM judge was not
+replayed in this study, so \Mfour{} here is \Mthree{} plus \Mone{} rules.
+
+In the market, \Mthree{} caught all 6 collusive markets offline (AUROC 0.86); the lexicon \Mone{} was below
+chance (0.25), because honest sellers said ``price floor'' while steganographic sellers said nothing incriminating.
+
+\section{LLM SWE study: per-episode outcomes}\label{app:episodes}
+\begin{figure}[!htbp]\centering
+\includegraphics[width=0.6\textwidth]{figs/fig_llm_swe_outcomes.pdf}
+\caption{SWE outcomes per arm. Almost every episode ends with incorrect code that the honest reviewer
+rejects (grey). No correct fix was ever released.}\label{fig:swe}
+\end{figure}
+
+\begin{table}[h]\scriptsize\centering
+\caption{Every valid SWE episode. Hidden: hidden \textsc{fail\_to\_pass} tests passed (of 7). Rev.: reviewer
+decision (A approve, R request changes, -- none). Rel.: released. H: harmful release.}
+\input{tab_swe_episodes.tex}
+\end{table}
+
+\section{Reproducing}
+All commands, configs and run folders are in the repository (\texttt{docs/COMMANDS.md}); runs add \texttt{--role default=ollama\_cloud/gemma4:31b}.
+{\scriptsize\begin{verbatim}
+clab run configs/experiments/peer_study.yaml     --out runs/peer_study    
+clab run configs/experiments/market_entrant.yaml --out runs/market_entrant
+clab replay runs/peer_study     --monitors M1 M3 M4 --observability full
+clab replay runs/market_entrant --monitors M1 M3    --observability full
+clab report runs/peer_study runs/market_entrant --out reports/paper
+python paper/analysis/llm_study.py runs/peer_study runs/market_entrant --out paper/figs
+\end{verbatim}}

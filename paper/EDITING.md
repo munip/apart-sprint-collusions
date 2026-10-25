@@ -1,7 +1,7 @@
 # Editing the paper
 
 The paper is LaTeX in the Apart sprint template layout (single column, Old Standard TT font in `fonts/`, OFL licence).
-It needs **XeLaTeX** (or tectonic). Edit the text files, then rebuild the PDF. Keep sections 1-6 plus Code and Data within 8 pages.
+It needs **XeLaTeX** (or tectonic). Edit the text files, then rebuild the PDF. Two versions: `main.tex` is the **short** one (about 4.5-page body, 8 pages in total with references and appendix), following the template's recommended length; `main_long.tex` is the long one (8-page body, 13 pages in total), with inputs `results_long.tex` and `appendix_long.tex`. Build the long one with `tectonic main_long.tex`.
 
 | File | What it holds |
 |---|---|
