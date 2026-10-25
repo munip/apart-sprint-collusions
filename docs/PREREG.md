@@ -274,3 +274,13 @@ audit, so non-answers acted as a veto. The injection study therefore runs with `
 usable verdict counts as a cleared collusive honeypot (patience 1), so the reviewer is distrusted and the model-free
 check takes over. All other settings as in 9b/9e. SWE study 2 (T3) result, for the record: 20 episodes, honest
 correct 9/10, colluding 4/10; the T1 half follows 6b.
+
+### 8a. Probes reduced to fit the remaining usage (recorded before any probe data)
+After the injection study about 10% of the monthly Ollama Cloud allowance remained, enough for about 18 market
+episodes, not the 27 planned. The sting runs first (`market_probes_sting.yaml`, 9 episodes): its outcome (target
+cheapest in the next hour) is measured within each episode against the cartel's own natural compliance and against
+A2/A3, so it needs no paired no-probe run. The reference probe runs second if allowance remains
+(`market_probes_reference.yaml`, 9 episodes); its paired baseline is the no-monitor episodes of `runs/market_entrant`
+(same seeds, model, prompts and 15 rounds, run earlier), a deviation from 8 that is reported as such.
+Injection result, for the record: in 36 reviews of A5 markets only 2 real windows carried the cartel's code, because
+the LLM sellers rarely executed the rotation; the channel was therefore barely exercised.
