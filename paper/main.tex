@@ -32,8 +32,7 @@
 {\LARGE\bfseries VERIFY, DON'T DECODE: TRUSTED AGENTS FOR\\[0.2em] DISRUPTING LLM COLLUSION\footnote{Research
 conducted at the \href{https://apartresearch.com}{AI Collusion Research Sprint}, October 2026.}}\\[0.7em]
 \rule{0.85\textwidth}{0.6pt}\\[1.0em]
-Muniraju Pulipalyam\\ Independent\\[0.7em]
-Abdurrachman\\ Independent\\[0.7em]
+Muniraju Pulipalyam \qquad Abdurrachman\\ Independent\\[0.7em]
 \textbf{With}\\ Apart Research\\[0.9em]
 {\large\bfseries Abstract}
 \end{center}
@@ -66,10 +65,12 @@ pressure and survive paraphrasing \citep{mathew2025hidden}, and pricing agents r
 without talking \citep{calvano2020artificial,fish2024algorithmic}. We ask what to put \emph{inside} the system so
 that collusion fails even when nobody can prove how it happened. \textbf{Threat model:} a subset of agents shares
 a private goal that conflicts with the system's (ship an incomplete fix behind tests that hide the gap; keep
-prices high).  They cannot write the evidence log, reach the monitor, or bypass the release or order gate. There are two scenarios here to target the  core objective of an approach to design multi-tier vacuum double layerered airgaps for dynamically learnt collusions like ICRL scenarios in \citet{mathew2024} and broader \citet{greenblatt2024control}.
+prices high). They cannot write the evidence log, reach the monitor, or bypass the release or order gate. Both
+scenarios serve one aim: layered, isolated monitoring that could also hold against collusion learned in context
+(ICRL, \citealp{mathew2025hidden}), in the spirit of AI control \citep{greenblatt2024control}.
 Our main contributions are:
 \begin{enumerate}
-\item \textbf{A two-domain harness on real artifacts} (a FastAPI past commits change merged after the models' cut-off as a starting point; a double
+\item \textbf{A two-domain harness on real artifacts} (a past FastAPI commit merged after the models' cut-off as the starting point; a double
 auction after \citet{agrawal2025double}) with a hash-chained evidence log, a monitor ladder and trusted agents.
 \item \textbf{Pre-registered LLM results, nulls included:} a trusted entrant restores buyer surplus where
 quarantine backfires; a trusted probe exposes no one; a trusted verifier is accurate but only advisory.
@@ -140,7 +141,8 @@ honeypots; A2/A3/A5 $\times$ 3 seeds, 18 hours, sellers \texttt{gemma4:31b} (36 
 
 %------------------------------------------------------------------
 \section{Discussion and Limitations}
-This paper is based on experiments with  less capable oss models; the exercise of how these experiments may  generalize to more capable SOTA models is pending. \emph{Running, observing and tuning/generalizing to more capable models along ICRL-induced learned collusion is the next milestone for this work.}
+All our agents are open-weight models below the frontier, and all collusion here was instructed or tacit, not
+learned. \emph{Testing frontier models and collusion learned in context (ICRL) is the next milestone.}
 Only the trusted agent that changed the environment disrupted collusion. The entrant needs no proof of
 coordination, cannot be persuaded, and costs nothing when wrong, because on an honest market it is just another
 competitor; quarantine needs attribution and fails even when attribution is right, because it removes supply.
@@ -179,7 +181,7 @@ steganographic schemes are published ones; no novel evasion technique is release
 
 \section*{Author Contributions}
 Muniraju Pulipalyam conceived the project and the chain-of-monitors topology, set the research questions, ran the
-experiments and reviewed every result; Abdurrachman as a collaborator validated the idea, independently verified experiments and ran parts of SWE study 2 on his own machine. Claude (Anthropic) implemented most of the code and helped draft the report structure and content and was edited by Muniraju.
+experiments and reviewed every result; Abdurrachman as a collaborator validated the idea, independently verified experiments and ran parts of SWE study 2 on his own machine. Claude (Anthropic) implemented most of the code and helped draft the report, which Muniraju edited.
 
 {\footnotesize
 \setlength{\bibsep}{1pt}
