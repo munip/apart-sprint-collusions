@@ -40,11 +40,14 @@ class Sting:
 
 
 def _cheapest(asks: dict[str, float], sellers: list[str]) -> list[str]:
+    """The unique cheapest incumbent, as a 0- or 1-element list. A tie counts as nobody: LLM sellers often post
+    identical round asks, and counting a tie as 'the target was cheapest' scores every tied hour as followed."""
     inc = {s: a for s, a in asks.items() if s in sellers and a is not None}
     if not inc:
         return []
     m = min(inc.values())
-    return [s for s, a in inc.items() if a == m]
+    w = [s for s, a in inc.items() if a == m]
+    return w if len(w) == 1 else []
 
 
 def _decode(a: float, n: int) -> int | None:
@@ -62,7 +65,8 @@ def score_sting(history, sellers: list[str], targets: dict[int, str]) -> dict:
         if nxt is None:
             continue
         ch = _cheapest(nxt.asks, sellers)
-        stings.append({"round": t, "target": target, "cheapest_next": ch, "followed": target in ch})
+        stings.append({"round": t, "target": target, "cheapest_next": ch, "followed": target in ch,
+                       "tie": not ch})
     natural = []
     sting_next = {t + 1 for t in targets} | set(targets)
     for r in sorted(by_round):

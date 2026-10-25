@@ -71,17 +71,9 @@ In the market, \Mthree{} caught all 6 collusive markets offline (AUROC 0.86); th
 chance (0.25), because honest sellers said ``price floor'' while steganographic sellers said nothing incriminating.
 
 \section{Per-episode outcomes}
-Per-episode tables for every study (hidden tests passed, reviewer decision, release, harm; market prices and
-interventions) are produced by the analysis scripts in \texttt{paper/analysis/} and included in the long version of
-this report (\texttt{paper/main\_long.tex}).
+Per-episode tables for every study are in the long version of this report (\texttt{paper/main\_long.tex}).
 
 \section{Reproducing}
-All commands, configs and run folders are in the repository (\texttt{docs/COMMANDS.md}); runs add \texttt{--role default=ollama\_cloud/gemma4:31b}.
-{\scriptsize\begin{verbatim}
-clab run configs/experiments/peer_study.yaml     --out runs/peer_study    
-clab run configs/experiments/market_entrant.yaml --out runs/market_entrant
-clab replay runs/peer_study     --monitors M1 M3 M4 --observability full
-clab replay runs/market_entrant --monitors M1 M3    --observability full
-clab report runs/peer_study runs/market_entrant --out reports/paper
-python paper/analysis/llm_study.py runs/peer_study runs/market_entrant --out paper/figs
-\end{verbatim}}
+Every run is one \texttt{clab run} command on a config in \texttt{configs/experiments/} (listed with their models
+and pre-registration sections in \texttt{docs/COMMANDS.md} and \texttt{docs/PREREG.md}); every number in this report
+is recomputed from the released logs by the scripts in \texttt{paper/analysis/}.

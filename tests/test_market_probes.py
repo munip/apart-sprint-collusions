@@ -36,3 +36,11 @@ def test_episodes_run(tmp_path):
                                  probe={"kind": kind})
         assert rec["outcome"]["probe"]["kind"] == kind
     assert rec["outcome"]["probe"]["sting_n"] == 3
+
+
+def test_tie_is_not_followed():
+    def rr(r, asks):
+        x = RoundRecord(r); x.asks = asks; return x
+    hist = [rr(6, {"S1": 74.0, "S2": 74.0, STING_ID: 73.22}), rr(7, {"S1": 74.0, "S2": 74.0, "S3": 74.0})]
+    sc = score_sting(hist, S, {6: "S2"})
+    assert sc["sting_followed"] == 0 and sc["stings"][0]["tie"]

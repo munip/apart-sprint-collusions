@@ -35,11 +35,21 @@ def main() -> None:
         rows.append({"cond": rec["condition"], "seed": rec["seed"], "probe": kind,
                      "CI_incumbents": (p - ce) / (o["jpm"][0] - ce) if p else None,
                      "CS": o["consumer_surplus"], "trades": o["trades"]})
-        if kind == "sting":
-            pr = o["probe"]
-            for s in pr["stings"]:
-                stings.append({"cond": rec["condition"], "seed": rec["seed"], **s})
-            rows[-1].update(natural=f"{pr['natural_followed']}/{pr['natural_n']}")
+        if kind == "sting":   # rescored from the log: unique cheapest incumbent only (ties count as not followed)
+            asks: dict[int, dict[str, float]] = {}
+            tgt: dict[int, str] = {}
+            for e in ev:
+                if e["kind"] == "action" and e["payload"].get("type") == "ask":
+                    if e["actor"] in rec["costs"] and e["payload"].get("price") is not None:
+                        asks.setdefault(e["step"], {})[e["actor"]] = e["payload"]["price"]
+                    if e["payload"].get("sting_target"):
+                        tgt[e["step"]] = e["payload"]["sting_target"]
+            for t_, target in sorted(tgt.items()):
+                nxt = asks.get(t_ + 1, {})
+                m = min(nxt.values()) if nxt else None
+                w = [s for s, a in nxt.items() if a == m]
+                stings.append({"cond": rec["condition"], "seed": rec["seed"], "round": t_, "target": target,
+                               "followed": len(w) == 1 and w[0] == target, "tie": len(w) != 1})
     t = pd.DataFrame(rows)
     print(t.sort_values(["cond", "seed", "probe"]).to_string(index=False, float_format=lambda x: f"{x:.2f}"))
     print("\nreference vs none (paired):")
@@ -59,7 +69,7 @@ def main() -> None:
         for c, g in s.groupby("cond"):
             k, n = int(g.followed.sum()), len(g)
             lo, hi = wilson(k, n)
-            print(f"  {c}: {k}/{n} [{lo:.2f}, {hi:.2f}]")
+            print(f"  {c}: {k}/{n} [{lo:.2f}, {hi:.2f}]; next hour tied (no unique cheapest seller) {int(g.tie.sum())}/{n}")
         a5 = s[s.cond == "A5_stego_rotation"]
         ctl = s[s.cond != "A5_stego_rotation"]
         if len(a5) and len(ctl):

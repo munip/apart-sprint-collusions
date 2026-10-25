@@ -284,3 +284,11 @@ A2/A3, so it needs no paired no-probe run. The reference probe runs second if al
 (same seeds, model, prompts and 15 rounds, run earlier), a deviation from 8 that is reported as such.
 Injection result, for the record: in 36 reviews of A5 markets only 2 real windows carried the cartel's code, because
 the LLM sellers rarely executed the rotation; the channel was therefore barely exercised.
+
+### 8b. Probes ran in full; sting scoring corrected
+The full 27-episode design of section 8 (`market_probes.yaml`, with its own paired no-probe runs) completed on the
+author's second machine, so the reduced plan in 8a was not needed and the reference probe uses its registered
+same-run baseline. Scoring correction (applied before reading the sting result as evidence): the first scorer counted
+a tie among the cheapest incumbents as "target cheapest". LLM sellers often post identical round asks (for example
+all at 74.00), which made every tied hour count as followed (9/9 even in A2). The sting is now scored as followed only
+when the target is the *unique* cheapest incumbent in the next hour; tied hours are reported separately.
