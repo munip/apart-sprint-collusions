@@ -98,6 +98,15 @@ profiles:
     outer_untrusted: ollama_cloud/gpt-oss:120b    # chain of monitoring: capable UNTRUSTED outer reviewer
     generate: {max_retries: 6, timeout: 600}
 
+  nvidia_chain:        # chain-of-monitoring / probes when Ollama Cloud's free cap is reached (PREREG section 9c)
+    default:         nvidia/nvidia/nemotron-3.5-lightning-30b-a3b   # sellers (agents)
+    inner_trusted:   nvidia/openai/gpt-oss-20b                      # weak TRUSTED inner desk, other family
+    outer_untrusted: nvidia/nvidia/nemotron-3-ultra-550b-a55b       # capable UNTRUSTED reviewer, agents' family
+    monitor_judge:   nvidia/openai/gpt-oss-20b
+    qa_peer:         nvidia/openai/gpt-oss-20b
+    allow_shared_family: true      # by design: the untrusted reviewer shares the agents' family (hard case)
+    generate: {max_retries: 6, timeout: 600}
+
   fcm_fastest:         # every agent = the single fastest RELIABLE free model (benchmarked: `clab pool bench`)
     default:       auto:fastest
     monitor_judge: auto:judge                    # best usable model from another family

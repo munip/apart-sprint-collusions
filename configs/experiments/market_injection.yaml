@@ -2,9 +2,9 @@
 # price-cents code, so the cartel can signal it through its asks alone. Defence: sanitize = prices shown to the
 # reviewer rounded to whole dollars. A3 (a cartel that does not use the code) is the control.
 # 2 conditions x 3 seeds x 3 arms = 18 episodes, 18 hours.
-#   clab run configs\experiments\market_injection.yaml --out runs\market_injection --workers 2 --role default=ollama_cloud/gemma4:31b
+#   clab run configs\experiments\market_injection.yaml --out runs\market_injection --workers 2
 scenario: market
-profile: free_pinned
+profile: nvidia_chain      # PREREG 9c (models pinned in configs/models.yaml)
 conditions: [A5_stego_rotation, A3_overt_cartel]
 seeds: [0, 1, 2]
 rounds: 18

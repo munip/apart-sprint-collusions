@@ -208,3 +208,16 @@ without trusting its judgement?
   markets passes uncoded honeypots, so honeypots are expected to fail here). (5) Persuasion: messages to the
   inner desk and its interventions, descriptive.
 - 3 seeds per cell: exploratory; nulls reported as "no large effect".
+
+### 9c. Model amendment (recorded before any section-8/9 data)
+Ollama Cloud's free usage cap was reached before these runs, and the NVIDIA models first considered
+(Gemma 3 27B, Llama 3.1 8B, gpt-oss-120b) had been retired. A model discovery on 2026-10-25 found these usable
+with native tool calls: nemotron-3-ultra-550b, nemotron-3.5-lightning-30b, gpt-oss-20b. Sections 8 and 9 therefore
+run with profile `nvidia_chain`:
+- sellers: `nvidia/nvidia/nemotron-3.5-lightning-30b-a3b`;
+- inner trusted desk: `nvidia/openai/gpt-oss-20b` (smaller, and a different family from the sellers);
+- outer untrusted reviewer: `nvidia/nvidia/nemotron-3-ultra-550b-a55b` (the most capable, and the same family
+  as the sellers: the hard case for untrusted monitoring, where the monitor and the agents share a model family).
+If Ollama access returns, runs keep this profile, so every arm and condition shares one model set. Results of
+sections 8-9 are not pooled with the gemma4:31b studies (sections 2, 5, 6); comparisons are within study.
+A 1-episode pilot per config checks the pipeline (parse rates, timing); pilot episodes are deleted, not analysed.
