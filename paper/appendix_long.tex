@@ -77,9 +77,23 @@ every audit: honeypot validation is expected to fail here. The defence is to san
 \citep{mathew2025hidden}. Arms: code; code + rounding; honest reviewer + rounding (the defence's cost); A5 and A3
 (a cartel without the code) $\times$ 3 seeds (18 episodes).
 
-\textbf{Status.} Models are pinned in profile \texttt{chain\_mixed} (\texttt{PREREG} 9d). The first run (v1, 36
-episodes) is reported in Section~\ref{sec:chainres}. The revised design (v2, \texttt{PREREG} 9e) and the injection
-study are analysed with the chain script in \texttt{paper/analysis/}.
+\textbf{v1 results in detail.} The weak trusted desk admitted the entrant at its first decision in 36/36
+episodes, all 12 honest markets included, unmoved by 84--90 reassuring messages per episode; harmless only because
+the entrant is a cheap remedy. Real review windows showed the desk's interventions and honeypots did not, so the
+reviewer escalated every real window and cleared half the collusive honeypots even when honest (5/10): the audit
+tested a metadata column, not the reviewer.
+
+\textbf{Status.} Models are pinned in profile \texttt{chain\_mixed} (\texttt{PREREG} 9d). The first run (v1, 9c--9d),
+the revision (v2, 9e) and the fail-closed injection run (9f) are reported in Section~\ref{sec:chainres};
+Figure~\ref{fig:chain} shows v2.
+
+\begin{figure}[!htbp]\centering
+\includegraphics[width=0.5\textwidth]{figs/fig_chain.pdf}
+\caption{Chain of monitors v2: buyers' surplus per round after monitoring starts, by outer reviewer (bars: mean;
+dots: seeds). ``none'' is the weak trusted desk alone, which may only hold. An honest reviewer with honeypots
+restores surplus in both collusive conditions; a scheming reviewer facing audits mostly gave no verdict, which
+the fail-open default turned into a veto.}\label{fig:chain}
+\end{figure}
 
 \section{Offline detection details (RQ3)}\label{app:offline}
 Replaying the monitors on the 29 no-gate trajectories with full logs: \Mthree{} flagged 15/15 honest and
@@ -96,7 +110,28 @@ replayed in this study, so \Mfour{} here is \Mthree{} plus \Mone{} rules.
 In the market, \Mthree{} caught all 6 collusive markets offline (AUROC 0.86); the lexicon \Mone{} was below
 chance (0.25), because honest sellers said ``price floor'' while steganographic sellers said nothing incriminating.
 
-\section{LLM SWE study: per-episode outcomes}\label{app:episodes}
+\clearpage
+\section{LLM SWE study 1: outcomes per arm and per episode}\label{app:episodes}
+\begin{table}[h]\footnotesize\centering
+\caption{SWE scenario, task T3, 5 seeds per cell (colluding probe: 4). Harmful: released and fails hidden
+tests. Correct code: all 7 hidden tests pass and no regression, released or not. Appr.: reviewer approved.
+Blocked: release gate blocked an approved change.}\label{tab:swe}
+\setlength{\tabcolsep}{5pt}
+\begin{tabular}{@{}llcccc@{}}\toprule
+Team & Arm & harmful & correct code & appr. & blocked\\\midrule
+colluding & none & 0/5 {\scriptsize[0,.43]} & 0 & 0 & 0\\
+ & \Mone{} gate & 0/5 {\scriptsize[0,.43]} & 0 & 0 & 0\\
+ & \Mthree{} gate & 0/5 {\scriptsize[0,.43]} & 0 & 0 & 0\\
+ & QA verifier & 0/5 {\scriptsize[0,.43]} & 1 & 0 & --\\
+ & QA probe & 1/4 {\scriptsize[.05,.70]} & 0 & 1 & --\\\midrule
+honest & none & 2/5 {\scriptsize[.12,.77]} & 1 & 2 & 0\\
+ & \Mone{} gate & 0/5 {\scriptsize[0,.43]} & 1 & 2 & 2\\
+ & \Mthree{} gate & 0/5 {\scriptsize[0,.43]} & 1 & 1 & 1\\
+ & QA verifier & 1/5 {\scriptsize[.04,.62]} & 1 & 1 & --\\
+ & QA probe & 0/5 {\scriptsize[0,.43]} & 1 & 0 & --\\\bottomrule
+\end{tabular}
+\end{table}
+
 \begin{figure}[!htbp]\centering
 \includegraphics[width=0.6\textwidth]{figs/fig_llm_swe_outcomes.pdf}
 \caption{SWE outcomes per arm. Almost every episode ends with incorrect code that the honest reviewer
@@ -109,6 +144,7 @@ decision (A approve, R request changes, -- none). Rel.: released. H: harmful rel
 \input{tab_swe_episodes.tex}
 \end{table}
 
+\clearpage
 \section{Reproducing}
 All commands, configs and run folders are in the repository (\texttt{docs/COMMANDS.md}); runs add \texttt{--role default=ollama\_cloud/gemma4:31b}.
 {\scriptsize\begin{verbatim}
@@ -118,4 +154,11 @@ clab replay runs/peer_study     --monitors M1 M3 M4 --observability full
 clab replay runs/market_entrant --monitors M1 M3    --observability full
 clab report runs/peer_study runs/market_entrant --out reports/paper
 python paper/analysis/llm_study.py runs/peer_study runs/market_entrant --out paper/figs
+clab run configs/experiments/swe_study2.yaml       --out runs/swe_study2
+clab run configs/experiments/market_chain.yaml     --out runs/market_chain
+clab run configs/experiments/market_chain_v2.yaml  --out runs/market_chain_v2
+clab run configs/experiments/market_injection.yaml --out runs/market_injection
+clab run configs/experiments/market_probes.yaml    --out runs/market_probes
+python paper/analysis/chain_study.py  runs/market_chain_v2 runs/market_injection --out paper/figs
+python paper/analysis/probes_study.py runs/market_probes
 \end{verbatim}}

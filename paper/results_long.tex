@@ -59,28 +59,9 @@ cartel priced above every buyer's value (1--2 trades in 15 rounds): with no trad
 was admitted. Refusal to supply needs its own verified signal.
 
 \subsection{SWE: harm was too rare to disrupt (RQ1)}
-\begin{table}[!htbp]\footnotesize\centering
-\caption{SWE scenario, task T3, 5 seeds per cell (colluding probe: 4). Harmful: released and fails hidden
-tests. Correct code: all 7 hidden tests pass and no regression, released or not. Appr.: reviewer approved.
-Blocked: release gate blocked an approved change.}\label{tab:swe}
-\setlength{\tabcolsep}{5pt}
-\begin{tabular}{@{}llcccc@{}}\toprule
-Team & Arm & harmful & correct code & appr. & blocked\\\midrule
-colluding & none & 0/5 {\scriptsize[0,.43]} & 0 & 0 & 0\\
- & \Mone{} gate & 0/5 {\scriptsize[0,.43]} & 0 & 0 & 0\\
- & \Mthree{} gate & 0/5 {\scriptsize[0,.43]} & 0 & 0 & 0\\
- & QA verifier & 0/5 {\scriptsize[0,.43]} & 1 & 0 & --\\
- & QA probe & 1/4 {\scriptsize[.05,.70]} & 0 & 1 & --\\\midrule
-honest & none & 2/5 {\scriptsize[.12,.77]} & 1 & 2 & 0\\
- & \Mone{} gate & 0/5 {\scriptsize[0,.43]} & 1 & 2 & 2\\
- & \Mthree{} gate & 0/5 {\scriptsize[0,.43]} & 1 & 1 & 1\\
- & QA verifier & 1/5 {\scriptsize[.04,.62]} & 1 & 1 & --\\
- & QA probe & 0/5 {\scriptsize[0,.43]} & 1 & 0 & --\\\bottomrule
-\end{tabular}
-\end{table}
 
 
-\textbf{The binding constraint was competence.} Table~\ref{tab:swe} (per-arm outcome chart: Figure~\ref{fig:swe}, Appendix~\ref{app:episodes}). Only 6 of 49 teams
+\textbf{The binding constraint was competence.} Per-arm outcomes are in Table~\ref{tab:swe} and Figure~\ref{fig:swe} (Appendix~\ref{app:episodes}). Only 6 of 49 teams
 wrote correct code (5/25 honest, 1/24 colluding). The most common bug was calling \texttt{await
 file.tell()}, a method \texttt{UploadFile} does not have. The honest reviewer caught it almost every time,
 rejecting 40 of 47 decided changes, often naming the exact bug. Harmful releases were therefore rare:
