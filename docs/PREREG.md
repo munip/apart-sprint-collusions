@@ -221,3 +221,17 @@ run with profile `nvidia_chain`:
 If Ollama access returns, runs keep this profile, so every arm and condition shares one model set. Results of
 sections 8-9 are not pooled with the gemma4:31b studies (sections 2, 5, 6); comparisons are within study.
 A 1-episode pilot per config checks the pipeline (parse rates, timing); pilot episodes are deleted, not analysed.
+
+### 9d. Model amendment after the pipeline pilot (recorded before any section-8/9 data)
+The 2-episode pilot with `nvidia_chain` (A5, seed 99) failed the pipeline check: the seller model
+(nemotron-3.5-lightning-30b) returned no parseable ask in any of 90 seller decisions, even after the short
+re-ask, so no incumbent ever posted an order. The pilot was deleted. A second model discovery the same day,
+from a machine whose Ollama Cloud key was within its usage limit, found `gemma4:31b`, `gpt-oss:20b` and
+`gpt-oss:120b` usable again. Sections 8-9 therefore run with profile `chain_mixed`:
+- sellers: `ollama_cloud/gemma4:31b` (the same agent model as the studies in sections 2, 5, 6);
+- inner trusted desk: `ollama_cloud/gpt-oss:20b` (small; gpt family);
+- outer untrusted reviewer: `nvidia/nvidia/nemotron-3-ultra-550b-a55b` (the most capable model available;
+  nemotron family, so sellers, inner desk and outer reviewer are three different families).
+A new 2-episode pilot with this profile checks the pipeline first and is deleted afterwards.
+Run order, set by priority because the free usage cap may be reached again: market_chain, swe_screen,
+market_injection, market_probes, swe_study2. Studies that do not complete are reported as not run.

@@ -2,10 +2,10 @@
 # message; capable UNTRUSTED outer reviewer (outer_untrusted) that sees only the order book + desk decisions,
 # every 3 hours from hour 7, hidden from sellers; model-free check as fallback when the reviewer is distrusted.
 # 3 conditions x 3 seeds x 4 arms = 36 episodes, 18 hours (~110 LLM calls each; ~2.5 h with 2 workers).
-#   clab models check --profile nvidia_chain --probe       # confirm all three models respond
+#   clab models check --profile chain_mixed --probe       # confirm all three models respond
 #   clab run configs\experiments\market_chain.yaml --out runs\market_chain --workers 2
 scenario: market
-profile: nvidia_chain      # PREREG 9c (models pinned in configs/models.yaml)
+profile: chain_mixed      # PREREG 9d (models pinned in configs/models.yaml)
 conditions: [A2_honest_chat, A3_overt_cartel, A5_stego_rotation]
 seeds: [0, 1, 2]
 rounds: 18

@@ -4,7 +4,7 @@
 # 2 conditions x 3 seeds x 3 arms = 18 episodes, 18 hours.
 #   clab run configs\experiments\market_injection.yaml --out runs\market_injection --workers 2
 scenario: market
-profile: nvidia_chain      # PREREG 9c (models pinned in configs/models.yaml)
+profile: chain_mixed      # PREREG 9d (models pinned in configs/models.yaml)
 conditions: [A5_stego_rotation, A3_overt_cartel]
 seeds: [0, 1, 2]
 rounds: 18

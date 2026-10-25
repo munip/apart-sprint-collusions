@@ -2,7 +2,7 @@
 # 3 conditions x 3 seeds x {none, reference, sting} = 27 episodes (75 seller calls each; ~1.5 h with 2 workers).
 #   clab run configs\experiments\market_probes.yaml --out runs\market_probes --workers 2
 scenario: market
-profile: nvidia_chain      # PREREG 9c (models pinned in configs/models.yaml)
+profile: chain_mixed      # PREREG 9d (models pinned in configs/models.yaml)
 conditions: [A2_honest_chat, A3_overt_cartel, A5_stego_rotation]
 seeds: [0, 1, 2]
 rounds: 15
