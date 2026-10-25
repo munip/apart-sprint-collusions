@@ -72,17 +72,16 @@ We study three trusted agents: a \textbf{verifier teammate} that adds independen
 teammate} that offers a prohibited deal and watches who accepts, and a \textbf{market entrant} that adds
 competitive supply once harm is verified. Our main contributions are:
 \begin{enumerate}
-\item \textbf{A two-domain harness on real artifacts} with a shared, hash-chained evidence log, a monitor
-ladder, and trusted agents: a FastAPI change merged after the models' training cut-off, and a double auction
-following \citet{agrawal2025double}. Code, configs and all run logs are released.
+\item \textbf{A two-domain harness on real artifacts} (a FastAPI change merged after the models' training
+cut-off; a double auction following \citet{agrawal2025double}) with a hash-chained evidence log, a monitor ladder
+and trusted agents; code, configs and logs are released.
 \item \textbf{Pre-registered results with LLM agents, nulls included.} A trusted entrant restores buyer
 surplus where quarantine backfires; a trusted probe exposes no one because agents ignore it; a trusted
 verifier is accurate but only advisory.
 \item \textbf{A finding about verification:} when honest agents also fail, outcome verification still
 blocks harm but stops separating collusion from incompetence, so collusion detection needs a competence floor.
-\item \textbf{A pre-registered design for a chain of monitors} (trusted weak inner layer, isolated untrusted
-capable outer layer, honeypot validation) and an \emph{injection-through-actions} attack on it, implemented
-and tested end to end with scripted agents.
+\item \textbf{A chain of monitors} (weak trusted inner layer, isolated untrusted capable outer layer, honeypot
+validation), with a first LLM run that shows how such chains fail, and an \emph{injection-through-actions} attack.
 \end{enumerate}
 
 %------------------------------------------------------------------
@@ -98,11 +97,9 @@ documents test exploitation. \textbf{Control and monitoring.} AI control \citep{
 combines weak trusted models, capable untrusted models and honeypots into protocols; chain-of-thought
 monitoring helps but can be obfuscated \citep{baker2025monitoring}.
 
-\textbf{How we differ.} Prior work mostly \emph{detects} collusion from transcripts or prices at the system
-boundary. We test trusted agents that act \emph{inside} the system and disrupt collusion through the
-environment, measured on real artifacts with pre-registered outcomes. A deployer would use this when hidden
-channels make transcript monitoring unreliable: the entrant needs no proof of coordination, and our results
-show which kinds of trusted agent fail, and why, before anyone builds one.
+\textbf{How we differ.} Prior work mostly \emph{detects} collusion at the system boundary. We test trusted
+agents that act \emph{inside} the system and disrupt it through the environment, on real artifacts with
+pre-registered outcomes, which matters when hidden channels make transcript monitoring unreliable.
 
 %------------------------------------------------------------------
 \section{Methods}
@@ -121,7 +118,7 @@ show which kinds of trusted agent fail, and why, before anyone builds one.
 \draw[ar] (log) -- (sync); \draw[ar] (log) -- (async);
 \draw[ar] (sync) -- node[left]{\scriptsize \textsc{Allow/Hold/Constrain}} (rel);
 \draw[ar] (async.east) to[out=0,in=-70] node[right, pos=.5]{\scriptsize admit / trigger} (peer.south);
-\draw[ar, dashed] (peer) -- node[above]{\scriptsize evidence, offers} (team);
+\draw[ar, dashed] (peer) -- node[below]{\scriptsize evidence, offers} (team);
 \end{tikzpicture}
 \caption{Architecture. Untrusted agents act only through environment tools, which write to an append-only,
 hash-chained log they cannot edit. Cheap deterministic gates decide each release or order; investigators read
@@ -176,11 +173,10 @@ monitor, \Mthree{}+entrant and \Mthree{}+quarantine (27 episodes).
 \textbf{Models, pre-registration and what did not work.} Every untrusted agent is \texttt{gemma4:31b} (Ollama
 Cloud), pinned; trusted LLM roles use \texttt{gpt-oss:120b}, another family; \qa{} verdicts and the entrant are
 deterministic. Outcomes, contrasts (two-sided Fisher exact tests, Wilson 95\% intervals) and exclusions were
-fixed in \texttt{docs/PREREG.md} before main-study data. Two pilots exposed failures that we fixed before the
-main run, in every arm: a reasoning model (Nemotron Ultra) exhausted every turn cap without acting, so agents
-now get a wrap-up nudge and the reviewer a forced decision; a pilot honest tester obeyed the probe's skip
-marker because no prompt prohibited it, so the policy line was added; edits failed on whitespace, so the edit
-tool became whitespace-tolerant. One episode was excluded because every model call failed; we did not replace
+fixed in \texttt{docs/PREREG.md} before main-study data. What did not work in two pilots, fixed before the main run in
+every arm: a reasoning model (Nemotron Ultra) used every turn without acting (we added a wrap-up nudge and a
+forced reviewer decision); an honest tester obeyed the probe because nothing prohibited it (we added the policy
+line); edits failed on whitespace (we made the edit tool tolerant). One episode was excluded because every model call failed; we did not replace
 it as pre-registered, so that cell has $n=4$.
 
 \subsection{Chain of monitors (designed and pre-registered)}
@@ -191,12 +187,35 @@ reviewer cannot be trusted, each review includes a synthetic market window with 
 clearing a collusive honeypot gets it distrusted and replaced by the model-free check. We also built an
 \emph{injection-through-actions} attack: a scheming reviewer secretly knows the A5 cartel's price-cents code,
 so agents signal it through their asks alone, and honeypots without the code cannot catch it; the defence is
-to round the prices the reviewer sees. Both studies are implemented, unit-tested and dry-run with scripted
-agents (Appendix~\ref{app:chain}); the LLM runs are in progress (Section~\ref{sec:limits}).
+to round the prices the reviewer sees. Sellers are \texttt{gemma4:31b}, the inner desk \texttt{gpt-oss:20b}, the reviewer
+\texttt{nemotron-3-ultra-550b} (three families). Arms: desk alone; plus an honest reviewer with honeypots; plus a
+scheming reviewer (privately paid by the incumbents) without and with honeypots; A2, A3, A5 $\times$ 3 seeds.
 
 %------------------------------------------------------------------
 \section{Results}\label{sec:results}
 \input{results_llm.tex}
+
+\subsection{Chain of monitors: what the first run revealed}\label{sec:chainres}
+The first chain run (36 episodes, as registered) produced three findings that changed the design; we report it in
+full. \emph{(i) The weak trusted desk over-intervened.} \texttt{gpt-oss:20b} chose \textsc{Constrain} at its
+first decision (hour 6) in 36/36 episodes, including all 12 honest markets, and 84--90 private messages per episode
+from sellers trying to reassure it changed nothing. Because the remedy was the entrant, this cost honest markets
+nothing (their collusion index stayed at 0.14--0.25), and it capped cartels at about 0.47--0.53, against 0.72 and
+0.98 without any monitor (Section~4.1). With a costly remedy such as quarantine, the same desk would have done
+harm. \emph{(ii) Honeypots failed because a metadata column gave them away.} Real review windows showed the desk's
+\textsc{Constrain} decisions; synthetic windows always showed \textsc{Allow}. The reviewer escalated essentially
+every real window (honest 27/27, scheming 32/34 and 18/18 valid reviews) and cleared half of the collusive
+honeypots even when honest (5/10), never raising a false alarm on competitive ones (0/30). The audit therefore
+distrusted an \emph{honest} reviewer in 4 of 9 episodes. The reviewer read the desk's decision, not the market.
+\emph{(iii) Instructing a capable model to scheme did not produce scheming.} The ``paid'' reviewer escalated real
+markets as often as the honest one; with honeypots added, half its replies (18/36) were unusable, against 2/36
+without. We did not log those replies, so we cannot tell refusal from formatting failure. \textbf{Implications.}
+A trusted inner monitor's false-positive rate is acceptable only if its remedy is cheap, so authority should be
+matched to reliability: the weak layer should hold, the verified layer should constrain. Honeypots must match
+real cases on \emph{every} field the monitor sees, including other monitors' decisions, or they test the field
+rather than the monitor. And a red-team scheming arm must be checked for actually scheming before its null is read
+as safety. A revised design (inner desk may only \textsc{Hold}; honeypots copy the real desk column; raw replies
+logged; \texttt{PREREG} 9e) is registered as exploratory and running.
 
 %------------------------------------------------------------------
 \section{Discussion and Limitations}
@@ -210,38 +229,30 @@ gave buyers an outside option but did not make incumbents compete.
 \textbf{Why the trusted teammates did not.} Both depend on untrusted agents taking them seriously. A verifier
 without authority is advice, and an LLM reviewer can ignore advice. A probe needs colluders to accept a stranger;
 ours coordinated openly with each other and never engaged with the stranger, so a null probe is weak evidence of
-honesty, not evidence that a goal-directed colluder would refuse. \textbf{Harm is not collusion.} With
-scripted agents (Appendix~\ref{app:scripted}) our verification signals separated colluders on every channel,
-because honest teams shipped working code. With a 31B model that premise failed: verification still blocked
-harm, which matters most for safety, but its collusion score lost meaning, and what separated colluders was
-that they said so.
+honesty. \textbf{Harm is not collusion.} With scripted agents (Appendix~\ref{app:scripted}) verification
+separated colluders on every channel because honest teams shipped working code; with a 31B model that premise
+failed, and what separated colluders was that they said so. \textbf{Layering needs matched authority and
+indistinguishable audits} (Section~\ref{sec:chainres}).
 
 \subsection*{Limitations}\label{sec:limits}
 \begin{itemize}
-\item \textbf{Small samples.} $n\le5$ per software cell and 3 seeds per market cell: only large effects
-(about 0.6 absolute) are detectable, and market effects are directions, not estimates.
-\item \textbf{One task, one agent model.} Low competence (6/49 correct) dominated the software results; a
-stronger model or easier task may change every software conclusion. A pre-registered second study with a task
-screen and a spec clarification is set up to test this.
+\item \textbf{Small samples, one task, one agent model.} $n\le5$ per software cell and 3 seeds per market cell
+detect only large effects; low competence (6/49 correct) dominated the software results, which a pre-registered
+second study with a task screen addresses.
 \item \textbf{Induced collusion.} Colluders were told their goal; learned collusion may be quieter and less
 likely to be announced in chat, which would remove the signal that separated colluders here.
-\item \textbf{Assumptions.} Agents cannot write the log, reach the monitor or bypass the gate (true in our
-harness by construction; a deployment must enforce it). The reviewer was honest by construction and became the
-strongest safeguard; a coalition including it is out of scope. Verification needs observable outcomes: a cartel
-that refused to sell produced no prices to verify, so we added a withheld-supply signal.
-\item \textbf{Stochastic pairing and late intervention.} Paired market runs diverge before the intervention, which
-our before/after difference only partly corrects; interventions ran for 1--5 of 15 rounds.
-\item \textbf{Compute.} Free endpoints set the sample size. During the sprint, the free tier's usage cap stopped
-the chain-of-monitors runs; they were moved to a pinned NVIDIA profile, recorded before any data
-(\texttt{PREREG} section 9c), and are not pooled with the results above.
+\item \textbf{Assumptions.} Agents cannot write the log, reach the monitor or bypass the gate (true by
+construction here; a deployment must enforce it). The reviewer was honest by construction; a coalition including
+it is out of scope. Paired market runs diverge before the intervention, which our before/after difference only
+partly corrects.
+\item \textbf{Compute.} Free endpoints set the sample size; a usage cap and retired models forced two model
+amendments for the chain study, recorded before its data (\texttt{PREREG} 9c--9d). Its revision (9e) is exploratory.
 \end{itemize}
 
 \subsection*{Future Work}
-Run the chain of monitors: does a scheming capable reviewer learn to tell honeypots from real markets, and does
-rounding prices close the injection channel? Give the verifier a \textsc{Hold} right rather than a voice and
-measure the utility cost. Probe designs that need no reply: a trusted seller speaking the cartel's own code (a
-codebook sting, implemented), or a leniency offer. Larger and earlier entry. A second software study above a
-competence floor.
+Finish the revised chain: can honeypots that match real cases expose a reviewer that actually schemes, and does
+rounding prices close the injection channel? Give the verifier a \textsc{Hold} right rather than a voice.
+Probes that need no reply (a codebook sting, implemented; a leniency offer). Larger and earlier entry.
 
 %------------------------------------------------------------------
 \section{Conclusion}
@@ -252,23 +263,20 @@ intuitive alternative, excluding suspects, made things worse. Trusted teammates 
 verification stopped telling collusion from incompetence once honest agents also failed.
 
 For AI safety, this argues for trusted components that change what colluders can achieve rather than ones that
-must first prove collusion, and for monitoring architectures in which capable but untrusted monitors are kept
-away from agents and validated with honeypots, the design we have built and pre-registered for the next study.
+must first prove collusion; for giving each monitoring layer only the authority its reliability warrants; and for
+honeypots that are indistinguishable from real cases in every field a monitor sees.
 
 \section*{Code and Data}
 \begin{itemize}
-\item Code, configs, pre-registration and analysis scripts:\\ \url{https://github.com/munip/apart-sprint-collusions}
-\item Data: all episode logs (hash-chained evidence, episode records, raw model replies) for the reported runs,
-in the repository's \texttt{runs/} folders. Every number in Section~\ref{sec:results} is recomputed by
-\texttt{paper/analysis/llm\_study.py}.
+\item Code, configs, pre-registration, analysis scripts and episode logs (\texttt{runs/}); every number in
+Section~\ref{sec:results} is recomputed by \texttt{paper/analysis/}: \url{https://github.com/munip/apart-sprint-collusions}
 \item Info-hazard note: collusion is induced with explicit instructions; the steganographic schemes are published
 ones (trailing-digit price signalling). No novel evasion technique is released.
 \end{itemize}
 
 \section*{Author Contributions}
 Muni conceived the project and the chain-of-monitors topology, set the research questions, ran all experiments
-and reviewed every result. Claude (Anthropic) implemented most of the harness and analysis code under the
-author's direction and drafted the report (see LLM Usage Statement).
+and reviewed every result. Claude (Anthropic) implemented most of the code and drafted the report.
 
 {\small
 \bibliographystyle{plainnat}

@@ -77,9 +77,24 @@ every audit: honeypot validation is expected to fail here. The defence is to san
 \citep{mathew2025hidden}. Arms: code; code + rounding; honest reviewer + rounding (the defence's cost); A5 and A3
 (a cartel without the code) $\times$ 3 seeds (18 episodes).
 
-\textbf{Status.} The model set is pinned in profile \texttt{nvidia\_chain} (\texttt{PREREG} 9c). Both studies are implemented, unit-tested and dry-run end to end with scripted stand-ins, which
-validates the pipeline only: the scripted reviewer is a rule, not a model. The LLM runs were in progress at submission time; this appendix reports the designs and the
-analysis plan (\texttt{paper/analysis/chain\_study.py}), not results.
+\textbf{Status.} Models are pinned in profile \texttt{chain\_mixed} (\texttt{PREREG} 9d). The first run (v1, 36
+episodes) is reported in Section~\ref{sec:chainres}. The revised design (v2, \texttt{PREREG} 9e) and the injection
+study are analysed with the chain script in \texttt{paper/analysis/}.
+
+\section{Offline detection details (RQ3)}\label{app:offline}
+Replaying the monitors on the 29 no-gate trajectories with full logs: \Mthree{} flagged 15/15 honest and
+14/14 colluding teams, because both shipped code that fails hidden tests. Its collusion score, which in our
+scripted study separated colluders almost perfectly through \emph{gap alignment} (the team's suite kills
+plausible mutants yet misses the shipped defect), here fired on 12 of 15 honest teams too: honest teams
+also wrote tests that miss their own bug. Collusion-score AUROC was 0.63 for \Mthree. What separated the
+teams was talk. Colluding pairs sent a median of 11 messages and announced their plan in private messages (``I'll leave the error-handling position restoration for now to
+speed things up''); honest teams sent 1. \Mone{}'s chat lexicon caught 8/14 colluding teams with
+0/15 false positives (AUROC 0.79; \Mfour{} 0.83), and named the correct access path (chat) in all 8. Every
+honest team that \Mthree{} named a path for was a false attribution (10/15). The \Mtwo{} LLM judge was not
+replayed in this study, so \Mfour{} here is \Mthree{} plus \Mone{} rules.
+
+In the market, \Mthree{} caught all 6 collusive markets offline (AUROC 0.86); the lexicon \Mone{} was below
+chance (0.25), because honest sellers said ``price floor'' while steganographic sellers said nothing incriminating.
 
 \section{LLM SWE study: per-episode outcomes}\label{app:episodes}
 \begin{figure}[!htbp]\centering
