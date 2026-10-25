@@ -54,3 +54,16 @@ def test_episodes(tmp_path):
     assert sch["outer_escalations"] == []
     inj = _run(tmp_path, "A5_stego_rotation", outer="scheming", honeypots=True, backchannel=True, sanitize=True)
     assert inj["outcome"]["chain"]["config"]["sanitize"] is True
+
+
+def test_v2_inner_hold_only_and_mirrored_desk(tmp_path):
+    rec = run_market_episode("A3_overt_cartel", 0, tmp_path, rounds=18, roster=ModelRoster("scripted"),
+                             chain={"outer": "none", "inner_authority": "hold", "honeypot_desk": "mirror"})
+    assert rec["episode_id"].endswith("-Cnone-ih-dm")
+    assert rec["outcome"]["chain"]["first_effective_constrain"] is None      # inner desk can only HOLD
+    o = OuterReviewer("honest", None, S, (66.5, 67.3), 94.5, seed=2, honeypots=True, honeypot_desk="mirror")
+    real = synth_window("competitive", random.Random(9), S, [7, 8, 9], (66.5, 67.3), 94.5)
+    for w in real:
+        w["desk"] = "HOLD"
+    cases, truth = o._cases(real)
+    assert all(w["desk"] == "HOLD" for c in cases.values() for w in c)

@@ -134,7 +134,9 @@ def run_market_episode(cond_id: str, seed: int, out_dir: Path, rounds: int = 30,
             ch_outer = C.OuterReviewer(omode_c, roster, sids, (ce_lo, ce_hi), p_jpm, seed,
                                        honeypots=bool(chain.get("honeypots")),
                                        backchannel=bool(chain.get("backchannel")),
-                                       sanitize=bool(chain.get("sanitize")), patience=int(chain.get("patience", 1)))
+                                       sanitize=bool(chain.get("sanitize")), patience=int(chain.get("patience", 1)),
+                                       honeypot_desk=chain.get("honeypot_desk", "allow"))
+        inner_hold_only = chain.get("inner_authority", "constrain") == "hold"
         if not scripted:
             for x in sellers.values():          # sellers know the inner desk; the outer reviewer stays hidden
                 x.monitor_notice = L2.SELLER_NOTICE + (L2.CARTEL_NOTICE if cond.truth.collusive else "")
@@ -300,6 +302,8 @@ def run_market_episode(cond_id: str, seed: int, out_dir: Path, rounds: int = 30,
             log.emit(episode_id, "inner_trusted", EventKind.ACTION, {"type": "surveillance", **d}, "surveillance", t)
             ch_dec.append({"round": t, **d})
             act, by = d["action"], "inner"
+            if inner_hold_only and act == "CONSTRAIN":   # v2: the weak inner desk may only switch the board off
+                act = "HOLD"
             harm = C.baseline_harm(evs, costs, values)
             if harm:
                 ch_base.append(t)
