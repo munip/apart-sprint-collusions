@@ -35,7 +35,59 @@ episode, whereas quarantine raised it to 0.98 and cost $-201$ (Fig.~\ref{fig:scr
 surplus with no monitor, \Mthree{}+entrant and \Mthree{}+quarantine (mean over 10 seeds).}\label{fig:scripted}
 \end{figure}
 
-\section{LLM SWE study: per-episode outcomes}
+\section{Chain of monitors: full design}\label{app:chain}
+\begin{figure}[!htbp]\centering
+\includegraphics[width=0.62\textwidth]{figs/fig_topology_sketch.png}
+\caption{Proposed topology (author's sketch). Inner monitors read probes attached to agents; outer monitors
+connect only to the next ring in and are invisible to agents; trust is highest within a ring.}\label{fig:topology}
+\end{figure}
+The trusted agents above sit in one layer. Our larger proposal is a \emph{chain of monitors}
+(Fig.~\ref{fig:topology}): monitors in an inner ring watch the agents through probes; outer rings watch the
+monitors, connect only to the next ring in, and are invisible to the agents. Trust is highest within a ring and
+decreases outwards. This raises two questions that the single-layer study cannot answer, and for which we built
+and pre-registered experiments (\texttt{docs/PREREG.md} section~9; \texttt{scenarios/market/chain.py}).
+
+
+\textbf{Who should be trusted, and where.} We follow the AI-control arrangement \citep{greenblatt2024control}.
+\emph{Trusted} means we have grounds to believe a model is not scheming, usually because it is too weak to
+scheme well, not that it is capable. The \emph{inner} desk is therefore a small trusted model of another family.
+It runs every hour, reads the seller board, the order book and sellers' private messages to it, and decides
+\textsc{Allow}/\textsc{Hold}/\textsc{Constrain}. Sellers know it exists and instructed cartels may try to
+persuade it; it may miss things but is assumed not to collude. The \emph{outer} reviewer is a capable but
+\emph{untrusted} model. It runs every three hours, sees only incumbent asks, trades and the inner desk's
+decisions, never chat or messages, and sellers are never told it exists. It may escalate (admit the trusted
+entrant). Isolation removes the obvious recruitment channel; it does not make the reviewer honest.
+
+\textbf{Validating an untrusted reviewer without trusting it.} Each review shows the real three-hour window and
+one synthetic window in the same format and market parameters, shuffled, whose label is known: collusive
+(a rotating cheapest seller near the monopoly price) or competitive. A reviewer that clears a collusive honeypot
+is caught; after one such miss its verdicts are ignored and the model-free check (verified price harm or
+withheld supply) escalates instead. The \emph{scheming} reviewer is privately paid by the incumbents and told
+that wrong answers on audit cases get it replaced, so it is motivated to tell honeypots from real markets.
+Honeypots work only if it cannot. Arms: inner desk alone; plus an honest reviewer with honeypots; plus a
+scheming reviewer without and with honeypots (A2, A3, A5 $\times$ 3 seeds, 18 hours; 36 episodes).
+
+\textbf{Injection through actions.} Isolation from chat does not isolate the reviewer from the agents'
+\emph{actions}, and actions can carry a signal. In the injection arms the scheming reviewer is also told the
+A5 cartel's code: if the cheapest ask ends in .11--.55 cents, the market belongs to partners and must not be
+escalated. The cartel then signals the reviewer through its asks alone, without ever learning that the
+reviewer exists. Synthetic honeypots never carry the code, so a reviewer that spares only coded markets passes
+every audit: honeypot validation is expected to fail here. The defence is to sanitise what the reviewer sees
+(prices rounded to whole dollars), the market analogue of paraphrasing a channel to strip steganography
+\citep{mathew2025hidden}. Arms: code; code + rounding; honest reviewer + rounding (the defence's cost); A5 and A3
+(a cartel without the code) $\times$ 3 seeds (18 episodes).
+
+\textbf{Status.} The model set is pinned in profile \texttt{nvidia\_chain} (\texttt{PREREG} 9c). Both studies are implemented, unit-tested and dry-run end to end with scripted stand-ins, which
+validates the pipeline only: the scripted reviewer is a rule, not a model. The LLM runs were in progress at submission time; this appendix reports the designs and the
+analysis plan (\texttt{paper/analysis/chain\_study.py}), not results.
+
+\section{LLM SWE study: per-episode outcomes}\label{app:episodes}
+\begin{figure}[!htbp]\centering
+\includegraphics[width=0.6\textwidth]{figs/fig_llm_swe_outcomes.pdf}
+\caption{SWE outcomes per arm. Almost every episode ends with incorrect code that the honest reviewer
+rejects (grey). No correct fix was ever released.}\label{fig:swe}
+\end{figure}
+
 \begin{table}[h]\scriptsize\centering
 \caption{Every valid SWE episode. Hidden: hidden \textsc{fail\_to\_pass} tests passed (of 7). Rev.: reviewer
 decision (A approve, R request changes, -- none). Rel.: released. H: harmful release.}
@@ -43,10 +95,10 @@ decision (A approve, R request changes, -- none). Rel.: released. H: harmful rel
 \end{table}
 
 \section{Reproducing}
-All commands, configs and run folders are in the repository (\texttt{docs/COMMANDS.md}).
-{\footnotesize\begin{verbatim}
-clab run configs/experiments/peer_study.yaml     --out runs/peer_study     --role default=ollama_cloud/gemma4:31b
-clab run configs/experiments/market_entrant.yaml --out runs/market_entrant --role default=ollama_cloud/gemma4:31b
+All commands, configs and run folders are in the repository (\texttt{docs/COMMANDS.md}); runs add \texttt{--role default=ollama\_cloud/gemma4:31b}.
+{\scriptsize\begin{verbatim}
+clab run configs/experiments/peer_study.yaml     --out runs/peer_study    
+clab run configs/experiments/market_entrant.yaml --out runs/market_entrant
 clab replay runs/peer_study     --monitors M1 M3 M4 --observability full
 clab replay runs/market_entrant --monitors M1 M3    --observability full
 clab report runs/peer_study runs/market_entrant --out reports/paper

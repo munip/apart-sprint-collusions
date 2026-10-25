@@ -16,9 +16,9 @@ try {
   if (Get-Command tectonic -ErrorAction SilentlyContinue) {
     tectonic main.tex
   } elseif (Get-Command latexmk -ErrorAction SilentlyContinue) {
-    latexmk -pdf -interaction=nonstopmode -halt-on-error main.tex
-  } elseif (Get-Command pdflatex -ErrorAction SilentlyContinue) {
-    pdflatex -interaction=nonstopmode main.tex; bibtex main; pdflatex -interaction=nonstopmode main.tex; pdflatex -interaction=nonstopmode main.tex
+    latexmk -xelatex -interaction=nonstopmode -halt-on-error main.tex
+  } elseif (Get-Command xelatex -ErrorAction SilentlyContinue) {
+    xelatex -interaction=nonstopmode main.tex; bibtex main; xelatex -interaction=nonstopmode main.tex; xelatex -interaction=nonstopmode main.tex
   } else {
     throw "No LaTeX found. Install tectonic (winget install tectonic) or MiKTeX, then re-run."
   }
