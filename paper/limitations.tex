@@ -27,7 +27,9 @@ includes the reviewer is outside this study.
 half of them), and the market check needs trades: a cartel that refuses to sell produced no prices to
 verify.
 \item \emph{Free endpoints.} Rate limits and latency forced one pinned model and small runs; budget, not
-design, set the sample size.
+design, set the sample size. The chain-of-monitoring and injection studies (Section~\ref{sec:chain}) were not
+run because the free tier's usage cap was reached and the alternative provider's matching models had been
+retired.
 \item \emph{Same-family trusted roles.} The \Mtwo{} judge and \qa{} wording share one model; the trusted
 side's verdicts were deterministic, so the capability gap between trusted and untrusted components was not
 varied.
@@ -40,7 +42,8 @@ utility cost?
 \item Would a stronger or goal-directed colluder accept a stranger's offer? Is the null probe evidence of
 honesty, policy-following, or simply ignoring unsolicited messages?
 \item How much entry is needed to make incumbents compete, rather than only giving buyers an outside option?
-\item When the inner monitor is itself a capable, untrusted model that agents can see and persuade, can an
-outer layer of weaker but trusted checks detect that the monitor has joined the coalition?
+\item In a chain of monitors (Section~\ref{sec:chain}), can honeypots expose a capable, untrusted outer
+reviewer that is motivated to tell audits from real cases, and does sanitising the agents' actions close the
+channel through which agents can signal it without ever talking to it?
 \item How should harm verification and collusion detection be combined when honest agents also fail?
 \end{itemize}
