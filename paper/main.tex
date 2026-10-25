@@ -37,21 +37,22 @@ Muniraju Pulipalyam\\ Independent\\[0.7em]
 {\large\bfseries Abstract}
 \end{center}
 \begin{quote}\itshape
-Colluding LLM agents can hide their coordination, so monitors or overseers that read messages could be
-ineffective or fragile. We ask whether \emph{trusted agents} placed inside a multi-agent system can disrupt
-collusion without first decoding it. We test three in two settings:
-a software team implementing a real FastAPI change, with a trusted QA teammate that posts held-out acceptance
-results (\emph{verifier}) or privately offers a prohibited deal through a honeytoken (\emph{probe}); and an
-electricity double auction, where a trusted competitive \emph{entrant} joins once supra-competitive prices are
-verified. The entrant raised buyers'
-surplus over the paired run in 4 of the 5 collusive markets where it was admitted; quarantining suspects never
-helped, and publishing the competitive price dissolved an overt cartel but not a hidden one. In a pre-registered software study, harm was too
-rare to disrupt: an honest reviewer rejected 40 of 47 changes, no arm differed from its control, the probe drew no response (0/9), and the verifier matched the grader in 10/10 episodes. Above a competence floor (9/10 honest teams correct), the verifier tripled correct releases but also
-vouched for a colluding partial fix its tests did not cover. In a \emph{chain of monitors} (weak trusted desk;
-isolated untrusted reviewer; honeypot audits), an honest reviewer raised buyers' surplus in every
-collusive market, while a ``paid'' reviewer facing audits reasoned about which case was the audit and mostly gave
-no verdict, which our fail-open default turned into a veto. Layered monitors must fail closed and match
-authority to reliability.
+Colluding LLM agents can hide their coordination, so monitors or overseers that read their messages could be ineffective or
+fragile. We ask
+whether \emph{trusted agents} inside a multi-agent system can disrupt collusion without first decoding it.
+We test three kinds of trusted agent. In a software team implementing a real FastAPI change, a trusted QA teammate
+either reports results of hidden acceptance tests (a \emph{verifier}) or privately offers a prohibited shortcut (a
+\emph{probe}). In an electricity double auction, a trusted competing seller (an \emph{entrant}) joins once
+overpricing is verified. The entrant raised buyers' surplus in 4 of 5 collusive markets it entered;
+quarantining suspects never helped; publishing the competitive price dissolved an open cartel but not a hidden one.
+In a pre-registered software study, harm was too rare to disrupt: an honest reviewer rejected 40 of 47 changes, no
+arm differed from its control, the probe drew no response (0/9), and the verifier matched the grader every time.
+Above a competence floor (9/10 honest teams correct), the verifier tripled correct releases but also vouched for a
+colluding partial fix its tests did not cover. In a \emph{chain of monitors} (a weak trusted desk, plus an isolated,
+capable but untrusted reviewer checked with honeypot audits), an honest reviewer raised buyers' surplus in every
+collusive market, while a ``paid'' reviewer facing audits reasoned about which case was the audit and mostly gave no
+verdict, which our fail-open default turned into a veto. Layered monitors must fail closed and match authority to
+reliability.
 \end{quote}
 
 %------------------------------------------------------------------
