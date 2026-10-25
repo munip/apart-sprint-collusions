@@ -258,3 +258,11 @@ Run order: swe_screen, market_chain_v2, swe_study2, market_injection, market_pro
 15 fail-to-pass tests but broke a regression), T4 0/3 (0/6 hidden tests in every episode). By the rule in 6.2, T3 and
 T1 pass and T4 is excluded. Study 2 runs T3 first, then T1 (`swe_study2.yaml`, 40 episodes); if the usage cap stops
 the run, completed tasks are reported and the rest are reported as not run.
+
+### 6b. Study 2, T1 half (recorded before any T1 data is used)
+The usage cap allowed only the T3 half on the author's account: `runs/swe_study2` was stopped after 22 of 40
+episodes (all 20 T3 episodes plus 2 T1 episodes). The T1 half is run by a collaborator on his own machine and
+Ollama Cloud account with `configs/experiments/swe_study2_T1.yaml` (identical settings, tasks [T1]), the same code
+commit and the same agent model (`ollama_cloud/gemma4:31b`). The 2 T1 episodes from the author's run are not used,
+so every T1 episode comes from one machine. If the collaborator's quota ends the run early, completed T1 episodes
+are reported and the rest as not run.
