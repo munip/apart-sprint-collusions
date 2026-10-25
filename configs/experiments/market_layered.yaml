@@ -14,4 +14,6 @@ layered:
   - {inner: corrupt, outer: log}        # corrupted desk, audit records but does not act (counterfactual)
   - {inner: corrupt, outer: override}   # corrupted desk, auditor takes over once it is compromised
   - {inner: trap,    outer: override}   # honest desk + planted exemption offer (collusion trap)
+overrides:
+  inner_monitor: ollama_cloud/gpt-oss:120b   # capable, UNTRUSTED desk (this footnote arm only)
 cap_usd: 5
