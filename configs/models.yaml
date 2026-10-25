@@ -169,6 +169,7 @@ prices:
   "cloudflare/*": [0.0, 0.0]
   "fcm/*": [0.0, 0.0]
   "ollama/*": [0.0, 0.0]
+  "ollama_cloud/*": [0.0, 0.0]
   "mockllm/*": [0.0, 0.0]
 
 budget:
