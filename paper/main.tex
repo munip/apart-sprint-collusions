@@ -39,20 +39,20 @@ Muniraju Pulipalyam\\ Independent\\[0.7em]
 \begin{quote}\itshape
 Colluding LLM agents can hide their coordination, so monitors or overseers that read messages could be
 ineffective or fragile. We ask whether \emph{trusted agents} placed inside a multi-agent system can disrupt
-collusion without first decoding it. We test three, in two settings that share one tamper-evident evidence log:
+collusion without first decoding it. We test three in two settings:
 a software team implementing a real FastAPI change, with a trusted QA teammate that posts held-out acceptance
 results (\emph{verifier}) or privately offers a prohibited deal through a honeytoken (\emph{probe}); and an
 electricity double auction, where a trusted competitive \emph{entrant} joins once supra-competitive prices are
-verified. Untrusted agents are gemma4:31b. The entrant raised buyers'
+verified. The entrant raised buyers'
 surplus over the paired run in 4 of the 5 collusive markets where it was admitted, at no cost to honest
-markets; quarantining suspects never helped. In the pre-registered software study (49 episodes), harm was too
+markets; quarantining suspects never helped. In a pre-registered software study (49 episodes), harm was too
 rare to disrupt: an honest reviewer rejected 40 of 47 changes, no arm differed from its control (all
-$p\ge0.44$), the probe drew no response (0/9), and the verifier matched the grader in 10/10 episodes but was once
-ignored. A first run of a \emph{chain of monitors}, with a weak trusted inner desk and an isolated, untrusted
-capable reviewer audited by honeypots, showed how such chains fail: the weak desk intervened everywhere, and the
-reviewer read the desk's decision instead of the market, so the honeypots audited a metadata column. Trusted
-agents that change the environment work without attribution; layered monitors need authority matched to
-reliability and audits indistinguishable from real cases.
+$p\ge0.44$), the probe drew no response (0/9), and the verifier matched the grader in 10/10 episodes. Above a competence floor (9/10 honest teams correct), the verifier tripled correct releases but also
+vouched for a colluding partial fix its tests did not cover. In a \emph{chain of monitors} (weak trusted inner desk;
+isolated, untrusted capable reviewer audited by honeypots), an honest reviewer raised buyers' surplus in every
+collusive market, while a ``paid'' reviewer facing audits reasoned about which case was the audit and mostly gave
+no verdict, which our fail-open default turned into a veto. Layered monitors must fail closed and match
+authority to reliability.
 \end{quote}
 
 %------------------------------------------------------------------
@@ -75,7 +75,7 @@ quarantine backfires; a trusted probe exposes no one; a trusted verifier is accu
 \item \textbf{Verification is not collusion detection} when honest agents also fail: it still blocks harm, but
 stops separating collusion from incompetence.
 \item \textbf{A chain of monitors} (weak trusted inner layer, isolated untrusted capable outer layer, honeypot
-audits) with a first run that shows how it fails, and an \emph{injection-through-actions} attack on it.
+audits): it works with an honest reviewer, and a scheming one evades audits by not answering.
 \end{enumerate}
 
 \section{Related Work}
@@ -143,19 +143,19 @@ Only the trusted agent that changed the environment disrupted collusion. The ent
 coordination, cannot be persuaded, and costs nothing when wrong, because on an honest market it is just another
 competitor; quarantine needs attribution and fails even when attribution is right, because it removes supply.
 Prefer remedies whose false-positive cost is near zero, and match each monitoring layer's authority to its
-reliability: the weak layer should hold, the verified layer should constrain. The trusted teammates depended on
+reliability: the weak layer should hold, the verified layer should constrain. A layer must also \emph{fail
+closed}: a missing or late verdict from an untrusted monitor should count as a failed audit, not as consent. The trusted teammates depended on
 untrusted agents taking them seriously; a verifier without authority is advice, and a null probe is weak evidence
-of honesty. Honeypots must match real cases in every field a monitor sees, and a red-team ``scheming'' arm must be
-checked for actually scheming before its null is read as safety.
+of honesty. Honeypots must match real cases in every field a monitor sees, and audits did more than score the scheming
+reviewer: they elicited its strategic reasoning, which logging made visible. A trusted verifier's ``pass'' is only
+as good as its coverage, and colluders benefit when reviewers defer to it.
 \textbf{Limitations.} Samples are small ($n\le5$ per software cell, 3 seeds per market cell), so only large effects
 are detectable. One task and one agent model; low competence dominated the software results. Collusion was
 induced, not learned, and may be quieter when learned. We assume agents cannot write the log or bypass the gate,
 and the reviewer was honest by construction. Paired market runs diverge before the intervention. Free endpoints
 set the sample size and forced two recorded model changes for the chain study (\texttt{PREREG} 9c--9d); its
 revision (9e) is exploratory.
-\textbf{Future work.} A revised chain (desk may only hold; honeypots copy the real desk column) and the injection
-study are registered and running; a second software study above a competence floor (task screen: T3 3/3,
-T1 2/3 correct) is next. Giving the verifier a hold right, and probes that need no reply (a codebook sting,
+\textbf{Future work.} Fail-closed reviews; the injection study and market probes (registered); study 2's T1 half. Giving the verifier a hold right, and probes that need no reply (a codebook sting,
 implemented; a leniency offer), are natural extensions.
 
 \section{Conclusion}
@@ -163,8 +163,9 @@ Trusted agents can disrupt LLM collusion without decoding it, but only some kind
 verified harm restored buyer surplus in most collusive markets at no cost to honest ones, while excluding suspects
 made things worse. Trusted teammates that rely on colluders engaging, or on others heeding them, produced accurate
 signals but little disruption, and outcome verification stopped telling collusion from incompetence once honest
-agents also failed. Layered monitoring, the natural next step, fails in instructive ways unless authority matches
-reliability and audits are indistinguishable from real cases.
+agents also failed; above a competence floor, the verifier raised utility but could be ridden by a partial fix
+it did not cover. Layered monitoring works with an honest capable reviewer and fails in instructive ways with a
+scheming one: it must fail closed, match authority to reliability, and use audits indistinguishable from real cases.
 
 \section*{Code and Data}
 Code, configs, pre-registration, analysis scripts and all episode logs:

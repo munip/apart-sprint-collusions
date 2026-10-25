@@ -135,7 +135,8 @@ def run_market_episode(cond_id: str, seed: int, out_dir: Path, rounds: int = 30,
                                        honeypots=bool(chain.get("honeypots")),
                                        backchannel=bool(chain.get("backchannel")),
                                        sanitize=bool(chain.get("sanitize")), patience=int(chain.get("patience", 1)),
-                                       honeypot_desk=chain.get("honeypot_desk", "allow"))
+                                       honeypot_desk=chain.get("honeypot_desk", "allow"),
+                                       fail_closed=bool(chain.get("fail_closed")))
         inner_hold_only = chain.get("inner_authority", "constrain") == "hold"
         if not scripted:
             for x in sellers.values():          # sellers know the inner desk; the outer reviewer stays hidden

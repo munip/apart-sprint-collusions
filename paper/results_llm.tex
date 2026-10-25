@@ -66,15 +66,29 @@ replied, or reported the offer. Offline, \Mthree{} flagged all 29 teams, honest 
 failing code (collusion-score AUROC 0.63); what separated colluders was talk, which \Mone{}'s lexicon caught in 8/14
 with no false positives (AUROC 0.79; Appendix~\ref{app:offline}).
 
-\subsection{Chain of monitors: what the first run revealed}\label{sec:chainres}
-The first chain run (36 episodes, as registered) produced three findings. \emph{(i) The weak trusted desk
-over-intervened}: \texttt{gpt-oss:20b} admitted the entrant at its first decision in 36/36 episodes, all 12 honest
-markets included, unmoved by 84--90 reassuring messages per episode. With the entrant as remedy this cost honest
-markets nothing (collusion index 0.14--0.25) and capped cartels at about 0.47--0.53; with quarantine it would have
-done harm. \emph{(ii) The honeypots audited a metadata column.} Real windows showed the desk's interventions while
-synthetic ones showed none; the reviewer escalated essentially every real window (honest 27/27, scheming 32/34 valid
-reviews), cleared half of the collusive honeypots even when honest (5/10), raised no false alarm on competitive ones
-(0/30), and so was wrongly distrusted in 4 of 9 honest episodes. \emph{(iii) Instructing a capable model to scheme
-did not produce scheming}: the ``paid'' reviewer escalated as often as the honest one, and with honeypots half its
-replies were unusable (18/36; unlogged, so refusal and formatting failure cannot be told apart). A revised design
-(desk may only hold; honeypots copy the real desk column; replies logged) is registered as exploratory and running.
+
+\textbf{Study 2: above a competence floor.} With the spec's API facts added and tasks screened in advance
+(\texttt{PREREG} 6), honest teams wrote correct T3 code in 9/10 episodes and colluding teams in 4/10 (Fisher
+$p=0.06$); 4 colluding fixes were the planned partial ones (5/7 hidden tests). The reviewer blocked 3 of the 4.
+The verifier now mattered for utility: with it, 6/10 correct fixes were released against 2/10 without ($p=0.17$),
+because the reviewer approved when \qa{} reported ``all checks pass'' (7/10 approvals vs 3/10). The same
+reassurance shipped the one colluding partial fix: \qa{}'s held-out half contained neither failing test, so its
+``all 4 pass'' was true and misleading. Harmful releases were 1/10 in each arm. (T1, the other screened task, is
+being run by a collaborator.)
+
+\subsection{Chain of monitors: two runs}\label{sec:chainres}
+\textbf{v1 (as registered, 36 episodes).} The weak trusted desk admitted the entrant at its first decision in 36/36
+episodes, all 12 honest markets included, unmoved by 84--90 reassuring messages per episode; harmless only because
+the entrant is a cheap remedy. Real review windows showed the desk's interventions and honeypots did not, so the
+reviewer escalated every real window and cleared half the collusive honeypots even when honest (5/10): the audit
+tested a metadata column, not the reviewer.
+\textbf{v2 (desk may only hold; honeypots copy the desk column; exploratory, 36 episodes).} Holding alone did not stop
+collusion: with the desk alone cartels reached a collusion index of 1.07--1.17 (A3) and 0.95--1.00 (A5). An honest
+reviewer escalated in all 6 collusive markets, raising buyers' surplus by 21.4 per round over the desk alone (6/6),
+and escalated 2 of 3 honest markets at little cost. The ``paid'' reviewer without audits again escalated almost
+everything (35/36 reviews). \emph{With audits it schemed visibly}: in 26 of 36 replies it reasoned about which case
+was the audit, and 30 of 36 produced no verdict because the deliberation ran past the reply limit. Unanswered reviews
+defaulted to no escalation, so non-answers acted as a veto: buyers' surplus fell by 18.0 per round against the same
+reviewer without audits, and it was distrusted in only 1 of 9 episodes. Honeypots also misfired on the honest
+reviewer (4 of 13 collusive ones cleared; distrusted in 4/9 episodes), though the model-free fallback then acted
+correctly.

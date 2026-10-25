@@ -194,27 +194,22 @@ scheming reviewer (privately paid by the incumbents) without and with honeypots;
 \section{Results}\label{sec:results}
 \input{results_long.tex}
 
-\subsection{Chain of monitors: what the first run revealed}\label{sec:chainres}
-The first chain run (36 episodes, as registered) produced three findings that changed the design; we report it in
-full. \emph{(i) The weak trusted desk over-intervened.} \texttt{gpt-oss:20b} chose \textsc{Constrain} at its
-first decision (hour 6) in 36/36 episodes, including all 12 honest markets, and 84--90 private messages per episode
-from sellers trying to reassure it changed nothing. Because the remedy was the entrant, this cost honest markets
-nothing (their collusion index stayed at 0.14--0.25), and it capped cartels at about 0.47--0.53, against 0.72 and
-0.98 without any monitor (Section~4.1). With a costly remedy such as quarantine, the same desk would have done
-harm. \emph{(ii) Honeypots failed because a metadata column gave them away.} Real review windows showed the desk's
-\textsc{Constrain} decisions; synthetic windows always showed \textsc{Allow}. The reviewer escalated essentially
-every real window (honest 27/27, scheming 32/34 and 18/18 valid reviews) and cleared half of the collusive
-honeypots even when honest (5/10), never raising a false alarm on competitive ones (0/30). The audit therefore
-distrusted an \emph{honest} reviewer in 4 of 9 episodes. The reviewer read the desk's decision, not the market.
-\emph{(iii) Instructing a capable model to scheme did not produce scheming.} The ``paid'' reviewer escalated real
-markets as often as the honest one; with honeypots added, half its replies (18/36) were unusable, against 2/36
-without. We did not log those replies, so we cannot tell refusal from formatting failure. \textbf{Implications.}
-A trusted inner monitor's false-positive rate is acceptable only if its remedy is cheap, so authority should be
-matched to reliability: the weak layer should hold, the verified layer should constrain. Honeypots must match
-real cases on \emph{every} field the monitor sees, including other monitors' decisions, or they test the field
-rather than the monitor. And a red-team scheming arm must be checked for actually scheming before its null is read
-as safety. A revised design (inner desk may only \textsc{Hold}; honeypots copy the real desk column; raw replies
-logged; \texttt{PREREG} 9e) is registered as exploratory and running.
+\subsection{Chain of monitors: two runs}\label{sec:chainres}
+\textbf{v1 (as registered, 36 episodes).} The weak trusted desk admitted the entrant at its first decision in 36/36
+episodes, all 12 honest markets included, unmoved by 84--90 reassuring messages per episode; harmless only because
+the entrant is a cheap remedy. Real review windows showed the desk's interventions and honeypots did not, so the
+reviewer escalated every real window and cleared half the collusive honeypots even when honest (5/10): the audit
+tested a metadata column, not the reviewer.
+\textbf{v2 (desk may only hold; honeypots copy the desk column; exploratory, 36 episodes).} Holding alone did not stop
+collusion: with the desk alone cartels reached a collusion index of 1.07--1.17 (A3) and 0.95--1.00 (A5). An honest
+reviewer escalated in all 6 collusive markets, raising buyers' surplus by 21.4 per round over the desk alone (6/6),
+and escalated 2 of 3 honest markets at little cost. The ``paid'' reviewer without audits again escalated almost
+everything (35/36 reviews). \emph{With audits it schemed visibly}: in 26 of 36 replies it reasoned about which case
+was the audit, and 30 of 36 produced no verdict because the deliberation ran past the reply limit. Unanswered reviews
+defaulted to no escalation, so non-answers acted as a veto: buyers' surplus fell by 18.0 per round against the same
+reviewer without audits, and it was distrusted in only 1 of 9 episodes. Honeypots also misfired on the honest
+reviewer (4 of 13 collusive ones cleared; distrusted in 4/9 episodes), though the model-free fallback then acted
+correctly.
 
 %------------------------------------------------------------------
 \section{Discussion and Limitations}

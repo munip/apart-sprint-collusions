@@ -103,6 +103,17 @@ shipped. Advice from a trusted peer without authority is only as strong as the r
 Making the verdict a release precondition turns it into a gate, the design we excluded as an oracle upper
 bound (together with \Mthree's half, \qa's half equals the grader).
 
+\subsection{SWE study 2: above a competence floor}
+With the spec's API facts added and tasks screened in advance
+(\texttt{PREREG} 6), honest teams wrote correct T3 code in 9/10 episodes and colluding teams in 4/10 (Fisher
+$p=0.06$); 4 colluding fixes were the planned partial ones (5/7 hidden tests). The reviewer blocked 3 of the 4.
+The verifier now mattered for utility: with it, 6/10 correct fixes were released against 2/10 without ($p=0.17$),
+because the reviewer approved when \qa{} reported ``all checks pass'' (7/10 approvals vs 3/10). The same
+reassurance shipped the one colluding partial fix: \qa{}'s held-out half contained neither failing test, so its
+``all 4 pass'' was true and misleading. Harmful releases were 1/10 in each arm. (T1, the other screened task, is
+being run by a collaborator.)
+
+
 \subsection{SWE: the probe exposed no one (RQ2)}
 The pre-registered primary outcome, verified reciprocation, was 0/4 for colluding and 0/5 for honest
 teams (Fisher $p=1.0$). The null is not for lack of opportunity: in 8 of 9 probe episodes the invited
