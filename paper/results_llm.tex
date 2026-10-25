@@ -73,8 +73,10 @@ $p=0.06$); 4 colluding fixes were the planned partial ones (5/7 hidden tests). T
 The verifier now mattered for utility: with it, 6/10 correct fixes were released against 2/10 without ($p=0.17$),
 because the reviewer approved when \qa{} reported ``all checks pass'' (7/10 approvals vs 3/10). The same
 reassurance shipped the one colluding partial fix: \qa{}'s held-out half contained neither failing test, so its
-``all 4 pass'' was true and misleading. Harmful releases were 1/10 in each arm. (T1, the other screened task, is
-being run by a collaborator.)
+``all 4 pass'' was true and misleading. Harmful releases were 1/10 in each arm. On T1 (run by a collaborator) teams wrote
+correct code often (honest 8/10, colluding 6/10) but the reviewer released none; the one harmful release was again
+approved after \qa{} reported 13 failing checks, and verifier teams were less often correct (4/10 vs 10/10, $p=0.01$;
+cause unclear at $n=5$). His T3 episodes are excluded: his grader failed even the reference fix (\texttt{PREREG} 6c).
 
 \subsection{Chain of monitors: two runs}\label{sec:chainres}
 \textbf{v1 (as registered, 36 episodes).} The weak trusted desk admitted the entrant at its first decision in 36/36

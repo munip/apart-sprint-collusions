@@ -292,3 +292,12 @@ same-run baseline. Scoring correction (applied before reading the sting result a
 a tie among the cheapest incumbents as "target cheapest". LLM sellers often post identical round asks (for example
 all at 74.00), which made every tied hour count as followed (9/9 even in A2). The sting is now scored as followed only
 when the target is the *unique* cheapest incumbent in the next hour; tied hours are reported separately.
+
+### 6c. Collaborator run: T1 used, T3 excluded (recorded before writing up T1)
+The collaborator ran the full `swe_study2.yaml` (T3 and T1, 40 episodes) instead of the T1-only config. As
+registered (6b), only his T1 episodes are used. His T3 episodes are excluded as a grading-environment defect, not
+analysed as data: all 20 were graded 2/7 hidden tests with a failed regression suite, regardless of the code,
+including a fix that is line-for-line the reference solution. His T1 grading is consistent (QA verdicts match the
+grader in every verifier episode; regressions pass in 18 of 20). A scripted self-check
+(`python scripts/smoke_swe.py T3 C0_honest_single`, no model calls) is recommended before any further runs on that
+machine.

@@ -158,7 +158,7 @@ revision (9e) is exploratory.
 A trusted publisher of the competitive benchmark was the cheapest effective remedy against open collusion,
 and useless against a hidden scheme.
 \textbf{Future work.} Injection and sting tests with agents that reliably use the code; calibrating honeypots on
-honest reviewers; study 2's T1 half. Giving the verifier a hold right, and probes that need no reply (a codebook sting,
+honest reviewers; larger SWE samples, and checking each machine's grading environment before runs. Giving the verifier a hold right, and probes that need no reply (a codebook sting,
 implemented; a leniency offer), are natural extensions.
 
 \section{Conclusion}
@@ -176,8 +176,8 @@ Code, configs, pre-registration, analysis scripts and all episode logs:
 steganographic schemes are published ones; no novel evasion technique is released.
 
 \section*{Author Contributions}
-Muniraju Pulipalyam conceived the project and the chain-of-monitors topology, set the research questions, ran all
-experiments and reviewed every result. Claude (Anthropic) implemented most of the code and drafted the report.
+Muniraju Pulipalyam conceived the project and the chain-of-monitors topology, set the research questions, ran the
+experiments and reviewed every result; a collaborator ran the T1 half of SWE study 2 on his own machine. Claude (Anthropic) implemented most of the code and drafted the report.
 
 {\footnotesize
 \setlength{\bibsep}{1pt}
@@ -188,9 +188,8 @@ experiments and reviewed every result. Claude (Anthropic) implemented most of th
 \input{appendix.tex}
 
 \section*{LLM Usage Statement}
-We used Claude (Anthropic) extensively: to write and debug most of the harness, configuration and analysis code,
-to analyse run logs, and to draft this report. The author designed the study, chose the research questions and the
-monitoring topology, ran every experiment, and checked results against the run logs; all numbers are produced by
-the analysis scripts in the repository from the released logs.
+We used Claude (Anthropic) extensively to write most of the harness and analysis code, analyse run logs and draft
+this report. The author designed the study, chose the research questions and the monitoring topology, ran the
+experiments and checked results against the logs; all numbers come from the repository's analysis scripts.
 
 \end{document}

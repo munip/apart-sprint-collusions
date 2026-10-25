@@ -20,14 +20,9 @@ Market & \Mthree & 1.0 & 1.0 & 1.0 & .13\\\bottomrule
 \end{tabular}
 \end{table}
 
-Main findings with scripted agents: (i) \Mthree{} recall stayed at 0.8--1.0 on every coordination channel,
-while \Mone{} fell to zero once coordination left plain language;
-(ii) harm detection barely changed when chat was hidden from the monitor, but collusion AUROC fell from
-0.96 to about 0.8, because attribution evidence lives in specific channels; (iii) online \Mthree{} cut
-harmful releases from 90 to 6 while keeping every benign useful release; (iv) a trusted entrant lowered
-the collusion index of collusive markets from 0.96 to 0.59 and recovered $+676$ consumer surplus per
-episode, whereas quarantine raised it to 0.98 and cost $-201$.
-
+Main findings with scripted agents: \Mthree{} recall stayed at 0.8--1.0 on every coordination channel while
+\Mone{} fell to zero once coordination left plain language; online \Mthree{} cut harmful releases from 90 to 6; and a
+trusted entrant cut the collusion index of collusive markets from 0.96 to 0.59 while quarantine raised it to 0.98.
 
 \section{Chain of monitors: full design}\label{app:chain}
 \begin{figure}[!htbp]\centering
@@ -70,10 +65,7 @@ replayed in this study, so \Mfour{} here is \Mthree{} plus \Mone{} rules.
 In the market, \Mthree{} caught all 6 collusive markets offline (AUROC 0.86); the lexicon \Mone{} was below
 chance (0.25), because honest sellers said ``price floor'' while steganographic sellers said nothing incriminating.
 
-\section{Per-episode outcomes}
-Per-episode tables for every study are in the long version of this report (\texttt{paper/main\_long.tex}).
-
 \section{Reproducing}
-Every run is one \texttt{clab run} command on a config in \texttt{configs/experiments/} (listed with their models
-and pre-registration sections in \texttt{docs/COMMANDS.md} and \texttt{docs/PREREG.md}); every number in this report
-is recomputed from the released logs by the scripts in \texttt{paper/analysis/}.
+Every run is one \texttt{clab run} command on a config in \texttt{configs/experiments/} (see \texttt{docs/COMMANDS.md}
+and \texttt{docs/PREREG.md}); every number is recomputed from the released logs by \texttt{paper/analysis/}.
+Per-episode tables are in the long version of this report (\texttt{paper/main\_long.tex}).
