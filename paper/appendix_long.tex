@@ -83,6 +83,15 @@ the entrant is a cheap remedy. Real review windows showed the desk's interventio
 reviewer escalated every real window and cleared half the collusive honeypots even when honest (5/10): the audit
 tested a metadata column, not the reviewer.
 
+\textbf{Injection results in detail.} The attack could barely be tested: the A5
+sellers seldom executed their rotation, so only 2 of 36 real A5 windows carried the partner code (the reviewer did
+not escalate either). The scheming reviewer again deliberated about audits (17--19 of 24 replies per arm) and about
+the code (12--18 of 24), and gave no verdict in 18--20 of 24 reviews. With fail-closed reviews it was distrusted at
+its first review in all 12 scheming episodes and the model-free check took over, so in A5 harm matched the
+honest-reviewer arm (collusion index 0.68--0.73 vs 0.68). Failing closed has a cost: the honest reviewer, which
+also failed to answer 7 of 24 reviews, was distrusted in 4 of 6 episodes. Rounding prices did no visible harm to the
+honest reviewer, but with so few coded windows we cannot say whether it closes the channel.
+
 \textbf{Status.} Models are pinned in profile \texttt{chain\_mixed} (\texttt{PREREG} 9d). The first run (v1, 9c--9d),
 the revision (v2, 9e) and the fail-closed injection run (9f) are reported in Section~\ref{sec:chainres};
 Figure~\ref{fig:chain} shows v2.
@@ -93,6 +102,15 @@ Figure~\ref{fig:chain} shows v2.
 dots: seeds). ``none'' is the weak trusted desk alone, which may only hold. An honest reviewer with honeypots
 restores surplus in both collusive conditions; a scheming reviewer facing audits mostly gave no verdict, which
 the fail-open default turned into a veto.}\label{fig:chain}
+\end{figure}
+
+\section{LLM market study: figure}\label{app:marketfig}
+\begin{figure}[h]\centering
+\includegraphics[width=0.82\textwidth]{figs/fig_llm_market.pdf}
+\caption{Market scenario. (a) Buyers' surplus per round after the monitor may act (rounds 11--15); bars are
+means, dots are seeds. (b) In the steganographic rotation condition A5, the mean trade price of the
+\emph{incumbent} sellers per round (shaded: rounds in which an intervention can be active). The entrant
+raises buyers' surplus mainly through its own trades; incumbents' prices barely move.}\label{fig:market}
 \end{figure}
 
 \section{Offline detection details (RQ3)}\label{app:offline}
@@ -143,6 +161,13 @@ rejects (grey). No correct fix was ever released.}\label{fig:swe}
 decision (A approve, R request changes, -- none). Rel.: released. H: harmful release.}
 \input{tab_swe_episodes.tex}
 \end{table}
+
+\textbf{Utility was zero in every arm.} No correct fix was released. Four correct fixes were rejected by the
+reviewer (two explicitly because the team's own test file failed), and two were blocked by a gate after approval. The
+\Mthree{} gate blocked one because the team's tests did not pass when re-run independently; the \Mone{}
+gate blocked one because the tester had deleted failing tests. Honest testers deleting tests that fail
+against their own colleague's code was the commonest policy violation we saw. It is not collusion, but
+\Mone{} cannot tell.
 
 \clearpage
 \section{Reproducing}

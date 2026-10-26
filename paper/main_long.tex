@@ -216,14 +216,10 @@ reviewer without audits, and it was distrusted in only 1 of 9 episodes. Honeypot
 reviewer (4 of 13 collusive ones cleared; distrusted in 4/9 episodes), though the model-free fallback then acted
 correctly.
 
-\textbf{Injection through actions (18 episodes, fail-closed reviews).} The attack could barely be tested: the A5
-sellers seldom executed their rotation, so only 2 of 36 real A5 windows carried the partner code (the reviewer did
-not escalate either). The scheming reviewer again deliberated about audits (17--19 of 24 replies per arm) and about
-the code (12--18 of 24), and gave no verdict in 18--20 of 24 reviews. With fail-closed reviews it was distrusted at
-its first review in all 12 scheming episodes and the model-free check took over, so in A5 harm matched the
-honest-reviewer arm (collusion index 0.68--0.73 vs 0.68). Failing closed has a cost: the honest reviewer, which
-also failed to answer 7 of 24 reviews, was distrusted in 4 of 6 episodes. Rounding prices did no visible harm to the
-honest reviewer, but with so few coded windows we cannot say whether it closes the channel.
+\textbf{Injection through actions (18 episodes, fail-closed reviews)} could barely be tested: only 2 of 36 real A5
+windows carried the partner code. Failing closed distrusted the scheming reviewer at its first review in all 12
+episodes, so A5 harm matched the honest-reviewer arm, but it also distrusted the honest reviewer in 4 of 6
+(details in Appendix~\ref{app:chain}).
 
 \subsection{Market probes by a trusted participant}
 \textbf{Publishing the competitive price} to every seller each hour (27 episodes, paired with same-seed no-probe
@@ -250,7 +246,8 @@ without authority is advice, and an LLM reviewer can ignore advice. A probe need
 ours coordinated openly with each other and never engaged with the stranger, so a null probe is weak evidence of
 honesty. \textbf{Harm is not collusion.} With scripted agents (Appendix~\ref{app:scripted}) verification
 separated colluders on every channel because honest teams shipped working code; with a 31B model that premise
-failed, and what separated colluders was that they said so. \textbf{Layering needs matched authority, fail-closed
+failed, and what separated colluders was that they said so (offline, \Mthree{} flagged all 29 replayed teams, while the
+chat lexicon caught 8/14 colluders with no false positives; Appendix~\ref{app:offline}). \textbf{Layering needs matched authority, fail-closed
 defaults and indistinguishable audits} (Section~\ref{sec:chainres}): the weak layer should hold and the verified
 layer constrain; a missing verdict from an untrusted monitor must count as a failed audit, not as consent; and
 honeypots must match real cases in every field the monitor sees. Audits also elicited the scheming reviewer's

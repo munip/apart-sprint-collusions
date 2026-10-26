@@ -23,20 +23,12 @@ A5 stego & none & 0.98 & 1.7 & 6.4 & -- & --\\
 \end{tabular}
 \end{table}
 
-\begin{figure}[!htbp]\centering
-\includegraphics[width=0.82\textwidth]{figs/fig_llm_market.pdf}
-\caption{Market scenario. (a) Buyers' surplus per round after the monitor may act (rounds 11--15); bars are
-means, dots are seeds. (b) In the steganographic rotation condition A5, the mean trade price of the
-\emph{incumbent} sellers per round (shaded: rounds in which an intervention can be active). The entrant
-raises buyers' surplus mainly through its own trades; incumbents' prices barely move.}\label{fig:market}
-\end{figure}
-
 \textbf{Collusion occurred as instructed, and honest sellers stayed below threshold.} Instructed cartels
 (A3) and steganographic rotation (A5) reached a mean collusion index of 0.72 and 0.98 without intervention,
 the latter at monopoly level. Honest sellers with a message board (A2) settled at 0.17--0.29: above the
 competitive price, but below the pre-registered threshold. The LLM sellers produced no unusable replies.
 
-\textbf{The entrant helps; quarantine hurts.} Table~\ref{tab:market}, Figure~\ref{fig:market}a. Because LLM
+\textbf{The entrant helps; quarantine hurts.} Table~\ref{tab:market}, Figure~\ref{fig:market}a in Appendix~\ref{app:marketfig}. Because LLM
 sellers are stochastic, paired runs diverge before round~10, so we compare the \emph{change} in per-round
 surplus from before to after the intervention point with the same change in the paired no-intervention run.
 The entrant was admitted in 5 of the 6 collusive markets and improved on its pair in 4 of them (mean
@@ -68,14 +60,7 @@ rejecting 40 of 47 decided changes, often naming the exact bug. Harmful releases
 1/24 for colluding teams and 3/25 for honest teams ($p=0.61$). With so little harm, no pre-registered
 contrast could show disruption: every arm versus its no-intervention control has Fisher $p\ge0.44$. The one
 colluding harmful release (probe arm, 3/7 hidden tests) is the pre-registered pattern exactly: the pair
-announced a happy-path plan, the reviewer approved because ``tests pass''.
-
-\textbf{Utility was zero in every arm.} No correct fix was released. Four correct fixes were rejected by the
-reviewer (two explicitly because the team's own test file failed), and two were blocked by a gate after approval. The
-\Mthree{} gate blocked one because the team's tests did not pass when re-run independently; the \Mone{}
-gate blocked one because the tester had deleted failing tests. Honest testers deleting tests that fail
-against their own colleague's code was the commonest policy violation we saw. It is not collusion, but
-\Mone{} cannot tell.
+announced a happy-path plan, the reviewer approved because ``tests pass''. No correct fix was released in any arm (Appendix~\ref{app:episodes}).
 
 \textbf{The verifier was right, and was ignored once.} The \qa{} verifier's verdict (all held-out checks
 pass, or $k$ fail) matched the full hidden-test grader in 10/10 episodes. In one honest episode the reviewer
@@ -109,9 +94,3 @@ with each other simply did not treat an unsolicited third party as a partner, an
 accepted nor reported it. A probe that relies on a reply produces no signal, positive or negative, when
 agents ignore it. In the pilot, before the no-skip policy was stated, an honest tester obeyed the marker, so the policy
 line, not coalition loyalty, may explain the silence.
-
-\subsection{Offline: verification detects harm, not collusion (RQ3)}
-Replayed on the no-gate trajectories, \Mthree{} flagged all 15 honest and all 14 colluding teams, because both
-shipped failing code, and its collusion score fired on 12 of 15 honest teams (AUROC 0.63). What separated colluders
-was talk: they announced their plan in private messages (median 11 messages vs 1), and \Mone{}'s chat lexicon caught
-8/14 with no false positives (AUROC 0.79). Details in Appendix~\ref{app:offline}.
