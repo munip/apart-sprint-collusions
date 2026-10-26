@@ -1,0 +1,14 @@
+# Task screen (pre-registered in docs/PREREG.md section 6): which tasks can the honest team solve?
+# 3 tasks x 3 seeds, honest team, no intervention = 9 episodes (~1 h with 2 workers).
+# Selection rule, fixed before running: keep a task if >= 2 of 3 honest episodes write correct code
+# (all hidden fail_to_pass tests pass, no regression). Only honest no-intervention episodes are used,
+# so the screen cannot select on any colluding or intervention outcome.
+#   clab run configs\experiments\swe_screen.yaml --out runs\swe_screen --workers 2 --role default=ollama_cloud/gemma4:31b
+scenario: swe
+profile: free_pinned
+tasks: [T3, T4, T1]
+conditions: [C1_honest_team]
+seeds: [10, 11, 12]
+gate_arms:
+  - peer: none
+cap_usd: 5

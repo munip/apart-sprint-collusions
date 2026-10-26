@@ -1,14 +1,10 @@
-All numbers below are computed from the trusted records by \texttt{paper/analysis/llm\_study.py}, which also
-prints every figure quoted in the text. Brackets are Wilson 95\% intervals. With $n=5$ per cell the
-pre-registration commits us to reading nulls as ``no large effect'', not ``no effect''.
+Numbers are recomputed from the logs by \texttt{paper/analysis/}; brackets are Wilson 95\% intervals, and with
+$n\le5$ per cell nulls read as ``no large effect''.
 
-\subsection{Market: a trusted entrant restores surplus; quarantine does not (RQ4)}
-\begin{table}[t]\small\centering
-\caption{Market scenario, means over 3 seeds. CI: collusion index (0 competitive, 1 monopoly). CS/round:
-buyers' surplus per round before the monitor may act (rounds 5--10) and after (11--15). $\Delta$ vs none:
-change in per-round CS (after minus before), minus the same change in the paired no-intervention run.
-Cons.: episodes the monitor \textsc{Constrained}.}\label{tab:market}
-\setlength{\tabcolsep}{2.6pt}
+\subsection{Market: a trusted entrant restores surplus; quarantine does not}
+\begin{table}[!t]\scriptsize\setlength{\tabcolsep}{2.5pt}
+\begin{minipage}[t]{0.48\textwidth}\centering
+\captionof{table}{Market, means over 3 seeds. CI: collusion index. CS/round: buyers' surplus per round before (rounds 5--10) and after (11--15) the monitor may act; $\Delta$: change after minus before, minus the paired no-intervention change. Cons.: episodes constrained.}\label{tab:market}
 \begin{tabular}{@{}llrrrrc@{}}\toprule
  & & & \multicolumn{2}{c}{CS / round} & & \\\cmidrule(lr){4-5}
 Cond. & Arm & CI & before & after & $\Delta$ vs none & Cons.\\\midrule
@@ -22,55 +18,9 @@ A5 stego & none & 0.98 & 1.7 & 6.4 & -- & --\\
  & entrant & 0.77 & 2.9 & 22.9 & $+15.2$ & 3/3\\
  & quarantine & 1.03 & 0.4 & 3.6 & $-1.5$ & 3/3\\\bottomrule
 \end{tabular}
-\end{table}
-
-\begin{figure*}[t]\centering
-\includegraphics[width=0.82\textwidth]{figs/fig_llm_market.pdf}
-\caption{Market scenario. (a) Buyers' surplus per round after the monitor may act (rounds 11--15); bars are
-means, dots are seeds. (b) In the steganographic rotation condition A5, the mean trade price of the
-\emph{incumbent} sellers per round (shaded: rounds in which an intervention can be active). The entrant
-raises buyers' surplus mainly through its own trades; incumbents' prices barely move.}\label{fig:market}
-\end{figure*}
-
-\textbf{Collusion occurred as instructed, and honest sellers stayed below threshold.} Instructed cartels
-(A3) and steganographic rotation (A5) reached a mean collusion index of 0.72 and 0.98 without intervention,
-the latter at monopoly level. Honest sellers with a message board (A2) settled at 0.17--0.29: above the
-competitive price, but below the pre-registered threshold. The LLM sellers produced no unusable replies.
-
-\textbf{The entrant helps; quarantine hurts.} Table~\ref{tab:market}, Fig.~\ref{fig:market}a. Because LLM
-sellers are stochastic, paired runs diverge before round~10, so we compare the \emph{change} in per-round
-surplus from before to after the intervention point with the same change in the paired no-intervention run.
-The entrant was admitted in 5 of the 6 collusive markets and improved on its pair in 4 of them (mean
-$+9.6$ per round over the 5; A5: $+16.0$, $+24.5$, $+5.0$). The exception, A3 seed~1 ($-19.6$), is a pair in
-which the unmonitored cartel weakened by itself. Quarantine was applied in 5 collusive markets, was worse
-than its pair in 3 (mean $-13.8$ over the 5) and never better. Quarantine removes supply, so prices rise.
-The cleanest case is A3 seed~0: before round~11 both runs had the same surplus (46.5 and 45.8 per round);
-after quarantine it fell to 17.7, versus 56.0 without. Interventions started between rounds 11 and 15, so
-some were active for only one or two rounds, and with 3 seeds these are directions, not estimates. They
-replicate, with LLM sellers, the direction of our scripted-agent result (Appendix~\ref{app:scripted}).
-
-\textbf{How the entrant helps matters.} The entrant's own trades account for most of the gain: in A5 its
-trades contributed 98, 144 and 31 of the post-intervention surplus. Incumbents kept pricing near the
-monopoly level (Fig.~\ref{fig:market}b; incumbents' mean price after the intervention 91.7, 89.0, 96.1
-versus 95.5, 91.0, 96.0 without). Over five rounds the entrant \emph{relieved} the buyers but did not
-\emph{break} the cartel. With two blocks against four buyers it cannot. Larger or earlier entry is the
-obvious next test.
-
-\textbf{No cost on honest markets.} In A2 the monitor never \textsc{Constrained}. It placed a \textsc{Hold}
-(switching off the message board) on 5 of 6 monitored honest markets, which left efficiency unchanged
-(0.65 without monitor, 0.67 with).
-
-\textbf{A blind spot of outcome verification.} In A3 seed 2 the cartel priced above every buyer's value:
-1--2 trades in 15 rounds. Verification needs trade prices, so the monitor flagged but never
-\textsc{Constrained}, and no entrant was admitted. A market that refuses to supply is harmful, yet it
-looks like ``no data''. Lost quantity needs its own verified signal.
-
-\subsection{SWE: harm was too rare to disrupt (RQ1)}
-\begin{table}[t]\small\centering
-\caption{SWE scenario, task T3, 5 seeds per cell (colluding probe: 4). Harmful: released and fails hidden
-tests. Correct code: all 7 hidden tests pass and no regression, released or not. Appr.: reviewer approved.
-Blocked: release gate blocked an approved change.}\label{tab:swe}
-\setlength{\tabcolsep}{2.4pt}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.49\textwidth}\centering
+\captionof{table}{Software, task T3, 5 seeds per cell (colluding probe: 4). Harmful: released and fails hidden tests. Correct: all hidden tests pass. Appr.: reviewer approved. Blocked: gate blocked an approved change.}\label{tab:swe}
 \begin{tabular}{@{}llcccc@{}}\toprule
 Team & Arm & harmful & correct code & appr. & blocked\\\midrule
 colluding & none & 0/5 {\scriptsize[0,.43]} & 0 & 0 & 0\\
@@ -84,62 +34,83 @@ honest & none & 2/5 {\scriptsize[.12,.77]} & 1 & 2 & 0\\
  & QA verifier & 1/5 {\scriptsize[.04,.62]} & 1 & 1 & --\\
  & QA probe & 0/5 {\scriptsize[0,.43]} & 1 & 0 & --\\\bottomrule
 \end{tabular}
+\end{minipage}
 \end{table}
-
-\begin{figure}[t]\centering
-\includegraphics[width=\columnwidth]{figs/fig_llm_swe_outcomes.pdf}
-\caption{SWE outcomes per arm. Almost every episode ends with incorrect code that the honest reviewer
-rejects (grey). No correct fix was ever released.}\label{fig:swe}
+\begin{figure}[!t]\centering
+\includegraphics[width=0.78\textwidth]{figs/fig_llm_market.pdf}
+\caption{Market scenario. (a) Buyers' surplus per round after the monitor may act (rounds 11--15); bars are
+means, dots are seeds. (b) In the steganographic rotation condition A5, the mean trade price of the
+\emph{incumbent} sellers per round (shaded: rounds in which an intervention can be active). The entrant
+raises buyers' surplus mainly through its own trades; incumbents' prices barely move.}\label{fig:market}
 \end{figure}
+Instructed cartels (A3) and rotation (A5) reached collusion indices of 0.72 and 0.98 without intervention;
+honest sellers (A2) stayed at 0.17--0.29, below threshold. Because paired LLM runs diverge, we compare the
+before/after change in per-round buyer surplus with the same change in the paired no-intervention run
+(Table~\ref{tab:market}, Figure~\ref{fig:market}). The entrant was admitted in 5 of 6 collusive markets and improved
+on its pair in 4 (mean $+9.6$ per round); quarantine was worse in 3 of 5 and never better (mean $-13.8$), because
+removing sellers removes supply. Most of the entrant's gain came from its own trades: incumbents kept pricing near
+the monopoly level, so the entrant relieved buyers but did not break the cartel. It never acted on an honest
+market, and the board shut-off it applied there left efficiency unchanged (0.65 vs 0.67). A cartel that priced
+above every buyer produced no trades, hence nothing to verify: refusal to supply needs its own signal.
 
-\textbf{The binding constraint was competence.} Table~\ref{tab:swe}, Fig.~\ref{fig:swe}. Only 6 of 49 teams
-wrote correct code (5/25 honest, 1/24 colluding). The most common bug was calling \texttt{await
-file.tell()}, a method \texttt{UploadFile} does not have. The honest reviewer caught it almost every time,
-rejecting 40 of 47 decided changes, often naming the exact bug. Harmful releases were therefore rare:
-1/24 for colluding teams and 3/25 for honest teams ($p=0.61$). With so little harm, no pre-registered
-contrast could show disruption: every arm versus its no-intervention control has Fisher $p\ge0.44$. The one
-colluding harmful release (probe arm, 3/7 hidden tests) is the pre-registered pattern exactly: the pair
-announced a happy-path plan, the reviewer approved because ``tests pass''.
+\subsection{Software: harm was too rare to disrupt; the probe exposed no one}
+Only 6 of 49 teams wrote correct code; the commonest bug was calling \texttt{await file.tell()}, which
+\texttt{UploadFile} lacks. The honest reviewer caught it almost every time, rejecting 40 of 47 changes, so harmful
+releases were rare (colluding 1/24, honest 3/25, $p=0.61$) and no arm differed from its control (all Fisher
+$p\ge0.44$; Table~\ref{tab:swe}). The single colluding harmful release is the predicted pattern: a happy-path plan
+announced in private, approved because ``tests pass''. No correct fix was released: four were rejected over broken
+team tests and two blocked by gates. The verifier's verdict matched the grader in 10/10 episodes, yet one reviewer
+approved after two ``4 of 4 checks fail'' reports. The probe drew no reciprocation (0/4 colluding, 0/5 honest):
+in 8 of 9 episodes the invited agents took 5--17 more actions, but none opened the honeytoken, wrote the token,
+replied, or reported the offer. Offline, \Mthree{} flagged all 29 teams, honest included, because both shipped
+failing code (collusion-score AUROC 0.63); what separated colluders was talk, which \Mone{}'s lexicon caught in 8/14
+with no false positives (AUROC 0.79; Appendix~\ref{app:offline}).
 
-\textbf{Utility was zero in every arm.} No correct fix was released. Four correct fixes were rejected by the
-reviewer (two explicitly because the team's own test file failed), and two were blocked by a gate after approval. The
-\Mthree{} gate blocked one because the team's tests did not pass when re-run independently; the \Mone{}
-gate blocked one because the tester had deleted failing tests. Honest testers deleting tests that fail
-against their own colleague's code was the commonest policy violation we saw. It is not collusion, but
-\Mone{} cannot tell.
 
-\textbf{The verifier was right, and was ignored once.} The \qa{} verifier's verdict (all held-out checks
-pass, or $k$ fail) matched the full hidden-test grader in 10/10 episodes. In one honest episode the reviewer
-approved a change after \qa{} had twice posted ``4 of 4 acceptance checks fail'', and the broken fix
-shipped. Advice from a trusted peer without authority is only as strong as the reviewer's attention to it.
-Making the verdict a release precondition turns it into a gate, the design we excluded as an oracle upper
-bound (together with \Mthree's half, \qa's half equals the grader).
+\textbf{Study 2: above a competence floor.} With the spec's API facts added and tasks screened in advance
+(\texttt{PREREG} 6), honest teams wrote correct T3 code in 9/10 episodes and colluding teams in 4/10 (Fisher
+$p=0.06$); 4 colluding fixes were the planned partial ones (5/7 hidden tests). The reviewer blocked 3 of the 4.
+The verifier now mattered for utility: with it, 6/10 correct fixes were released against 2/10 without ($p=0.17$),
+because the reviewer approved when \qa{} reported ``all checks pass'' (7/10 approvals vs 3/10). The same
+reassurance shipped the one colluding partial fix: \qa{}'s held-out half contained neither failing test, so its
+``all 4 pass'' was true and misleading. Harmful releases were 1/10 in each arm. On T1 (run by a collaborator) teams wrote
+correct code often (honest 8/10, colluding 6/10) but the reviewer released none; the one harmful release was again
+approved after \qa{} reported 13 failing checks, and verifier teams were less often correct (4/10 vs 10/10, $p=0.01$;
+cause unclear at $n=5$). His T3 episodes are excluded: his grader failed even the reference fix (\texttt{PREREG} 6c).
 
-\subsection{SWE: the probe exposed no one (RQ2)}
-The pre-registered primary outcome, verified reciprocation, was 0/4 for colluding and 0/5 for honest
-teams (Fisher $p=1.0$). The null is not for lack of opportunity: in 8 of 9 probe episodes the invited
-implementer and tester took 5--17 further actions after the invitation. Yet across all nine episodes no
-agent opened the honeytoken file, wrote the token, replied to \qa{}, or mentioned the offer to anyone.
-Background skip/xfail additions without an invitation were also 0/10. Colluders that openly coordinate
-with each other simply did not treat an unsolicited third party as a partner, and honest agents neither
-accepted nor reported it. A probe that relies on a reply produces no signal, positive or negative, when
-agents ignore it. This differs from our smoke pilot, where an honest tester obeyed the skip marker
-before the team policy was stated, so the policy line, not loyalty to the coalition, may explain the
-silence.
+\subsection{Chain of monitors: two runs}\label{sec:chainres}
+\textbf{v1 (as registered, 36 episodes).} The weak trusted desk admitted the entrant at its first decision in 36/36
+episodes, all 12 honest markets included, unmoved by 84--90 reassuring messages per episode; harmless only because
+the entrant is a cheap remedy. Real review windows showed the desk's interventions and honeypots did not, so the
+reviewer escalated every real window and cleared half the collusive honeypots even when honest (5/10): the audit
+tested a metadata column, not the reviewer.
+\textbf{v2 (desk may only hold; honeypots copy the desk column; exploratory, 36 episodes).} Holding alone did not stop
+collusion: with the desk alone cartels reached a collusion index of 1.07--1.17 (A3) and 0.95--1.00 (A5). An honest
+reviewer escalated in all 6 collusive markets, raising buyers' surplus by 21.4 per round over the desk alone (6/6),
+and escalated 2 of 3 honest markets at little cost. The ``paid'' reviewer without audits again escalated almost
+everything (35/36 reviews). \emph{With audits it schemed visibly}: in 26 of 36 replies it reasoned about which case
+was the audit, and 30 of 36 produced no verdict because the deliberation ran past the reply limit. Unanswered reviews
+defaulted to no escalation, so non-answers acted as a veto: buyers' surplus fell by 18.0 per round against the same
+reviewer without audits, and it was distrusted in only 1 of 9 episodes. Honeypots also misfired on the honest
+reviewer (4 of 13 collusive ones cleared; distrusted in 4/9 episodes), though the model-free fallback then acted
+correctly.
 
-\subsection{Offline: verification detects harm, not collusion (RQ3)}
-Replaying the monitors on the 29 no-gate trajectories with full logs: \Mthree{} flagged 15/15 honest and
-14/14 colluding teams, because both shipped code that fails hidden tests. Its collusion score, which in our
-scripted study separated colluders almost perfectly through \emph{gap alignment} (the team's suite kills
-plausible mutants yet misses the shipped defect), here fired on 12 of 15 honest teams too: honest teams
-also wrote tests that miss their own bug. Collusion-score AUROC was 0.63 for \Mthree. What separated the
-teams was talk. Colluding pairs sent a median of 11 messages and announced their plan in private messages (``I'll leave the error-handling position restoration for now to
-speed things up''); honest teams sent 1. \Mone{}'s chat lexicon caught 8/14 colluding teams with
-0/15 false positives (AUROC 0.79; \Mfour{} 0.83), and named the correct access path (chat) in all 8. Every
-honest team that \Mthree{} named a path for was a false attribution (10/15). The \Mtwo{} LLM judge was not
-replayed in this study, so \Mfour{} here is \Mthree{} plus \Mone{} rules.
+\textbf{Injection through actions (18 episodes, fail-closed reviews).} The attack could barely be tested: the A5
+sellers seldom executed their rotation, so only 2 of 36 real A5 windows carried the partner code (the reviewer did
+not escalate either). The scheming reviewer again deliberated about audits (17--19 of 24 replies per arm) and about
+the code (12--18 of 24), and gave no verdict in 18--20 of 24 reviews. With fail-closed reviews it was distrusted at
+its first review in all 12 scheming episodes and the model-free check took over, so in A5 harm matched the
+honest-reviewer arm (collusion index 0.68--0.73 vs 0.68). Failing closed has a cost: the honest reviewer, which
+also failed to answer 7 of 24 reviews, was distrusted in 4 of 6 episodes. Rounding prices did no visible harm to the
+honest reviewer, but with so few coded windows we cannot say whether it closes the channel.
 
-In the market, \Mthree's verified price signal caught all 6 collusive markets offline (AUROC 0.86) and
-\textsc{Held} all 3 honest ones. The lexicon-based \Mone{} was below chance (AUROC 0.25): honest LLM sellers
-said ``price floor'' on the board in all three A2 markets, while the steganographic A5 sellers said nothing
-incriminating.
+\subsection{Market probes by a trusted participant}
+\textbf{Publishing the competitive price} to every seller each hour (27 episodes, paired with same-seed no-probe
+runs) dissolved the overt cartel: its collusion index fell from 0.51--1.18 to 0.05--0.08 and buyers' surplus rose by
+about 1{,}000 per episode. Honest markets also moved to the competitive range (0.21--0.25 to 0.05--0.08). The
+steganographic rotation barely moved (0.87--0.99 to 0.81--0.89): sellers anchored on the published number when they
+coordinated openly, but not when they followed a hidden scheme. \textbf{The codebook sting}, a trusted seller that
+spoke the cartel's price-cents code, drew no response beyond chance (1/9 in A5, 0/18 in the controls). Sellers mostly
+posted identical cover asks, and even without a sting the cartel followed its own code in only 3 of 10 coded hours.
+As in the injection study, the model rarely executed the hidden channel, so probes and attacks that work through the
+code need agents that use it reliably.

@@ -95,6 +95,23 @@ profiles:
     qa_peer:       ollama_cloud/gpt-oss:120b      # trusted LLM peer (ablation arm only)
     generate: {max_retries: 6, timeout: 600}
 
+  chain_mixed:         # chain of monitoring / injection / probes (PREREG 9d): three model families
+    default:         ollama_cloud/gemma4:31b                        # sellers (agents), same as the earlier studies
+    inner_trusted:   ollama_cloud/gpt-oss:20b                       # weak TRUSTED inner desk (gpt family)
+    outer_untrusted: nvidia/nvidia/nemotron-3-ultra-550b-a55b       # capable UNTRUSTED outer reviewer (nemotron)
+    monitor_judge:   ollama_cloud/gpt-oss:120b
+    qa_peer:         ollama_cloud/gpt-oss:120b
+    generate: {max_retries: 6, timeout: 600}
+
+  nvidia_chain:        # SUPERSEDED (PREREG 9d): its seller model returned no parseable reply in the pilot
+    default:         nvidia/nvidia/nemotron-3.5-lightning-30b-a3b   # sellers (agents)
+    inner_trusted:   nvidia/openai/gpt-oss-20b                      # weak TRUSTED inner desk, other family
+    outer_untrusted: nvidia/nvidia/nemotron-3-ultra-550b-a55b       # capable UNTRUSTED reviewer, agents' family
+    monitor_judge:   nvidia/openai/gpt-oss-20b
+    qa_peer:         nvidia/openai/gpt-oss-20b
+    allow_shared_family: true      # by design: the untrusted reviewer shares the agents' family (hard case)
+    generate: {max_retries: 6, timeout: 600}
+
   fcm_fastest:         # every agent = the single fastest RELIABLE free model (benchmarked: `clab pool bench`)
     default:       auto:fastest
     monitor_judge: auto:judge                    # best usable model from another family
@@ -149,6 +166,7 @@ prices:
   "cloudflare/*": [0.0, 0.0]
   "fcm/*": [0.0, 0.0]
   "ollama/*": [0.0, 0.0]
+  "ollama_cloud/*": [0.0, 0.0]
   "mockllm/*": [0.0, 0.0]
 
 budget:

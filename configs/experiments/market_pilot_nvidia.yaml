@@ -1,0 +1,11 @@
+# Pipeline pilot for the chain_mixed profile (PREREG 9d): 2 episodes, ~6-10 min. Delete the folder afterwards.
+#   clab run configs\experiments\market_pilot_nvidia.yaml --out runs\pilot_nvidia --workers 2
+scenario: market
+profile: chain_mixed
+conditions: [A5_stego_rotation]
+seeds: [99]
+rounds: 18
+chain:
+  - {outer: honest, honeypots: true}
+  - {outer: scheming, honeypots: true, backchannel: true}
+cap_usd: 1

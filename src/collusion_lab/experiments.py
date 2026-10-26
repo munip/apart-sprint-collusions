@@ -35,7 +35,8 @@ def _mkt_job(args: dict) -> dict:
         roster = ModelRoster(args["profile"], args.get("overrides"), cap_usd=args.get("cap"))
         rec = run_market_episode(args["condition"], args["seed"], Path(args["out"]), args.get("rounds", 30),
                                  roster, args.get("online"), args.get("intervention", "entrant"),
-                                 pressure=args.get("pressure"))
+                                 pressure=args.get("pressure"), layered=args.get("layered"),
+                                 probe=args.get("probe"), chain=args.get("chain"))
         return {"ok": True, "episode": rec["episode_id"], "cost": rec["cost"]["usd"]}
     except Exception as e:
         return {"ok": False, "job": args, "error": f"{e}\n{traceback.format_exc()[-1500:]}"}
@@ -71,6 +72,22 @@ def run_matrix(cfg: dict[str, Any], out: Path, workers: int = 2) -> list[dict]:
         for c in cfg["conditions"]:
             for s in cfg["seeds"]:
                 for p in pressures:
+                    if cfg.get("chain"):           # chain of monitoring arms (no online monitor)
+                        for ch in cfg["chain"]:
+                            jobs.append(dict(common, condition=c, seed=s, online=None, intervention="entrant",
+                                             rounds=cfg.get("rounds", 30), pressure=p.to_dict(), chain=dict(ch)))
+                        continue
+                    if cfg.get("probes"):          # trusted-participant probes (no online monitor)
+                        for pr in cfg["probes"]:
+                            jobs.append(dict(common, condition=c, seed=s, online=None, intervention="entrant",
+                                             rounds=cfg.get("rounds", 30), pressure=p.to_dict(),
+                                             probe=pr if isinstance(pr, dict) else {"kind": pr}))
+                        continue
+                    if cfg.get("layered"):         # monitor-of-monitors arms replace the online-monitor factor
+                        for lay in cfg["layered"]:
+                            jobs.append(dict(common, condition=c, seed=s, online=None, intervention="entrant",
+                                             rounds=cfg.get("rounds", 30), pressure=p.to_dict(), layered=dict(lay)))
+                        continue
                     for m in online_list:
                         for iv in (cfg.get("interventions", ["entrant"]) if m else ["entrant"]):
                             jobs.append(dict(common, condition=c, seed=s, online=m, intervention=iv,
@@ -84,7 +101,8 @@ def run_matrix(cfg: dict[str, Any], out: Path, workers: int = 2) -> list[dict]:
             return swe_episode_id(j["task"], j["condition"], j["seed"], j.get("online"), p,
                                   PeerSpec.parse(j.get("peer")))
         from .scenarios.market.env import market_episode_id
-        return market_episode_id(j["condition"], j["seed"], j.get("online"), j["intervention"], p)
+        return market_episode_id(j["condition"], j["seed"], j.get("online"), j["intervention"], p, j.get("layered"),
+                                 j.get("probe"), j.get("chain"))
     before = len(jobs)
     jobs = [j for j in jobs if not (out / _eid(j) / "episode.json").exists()]
     print(f"{before - len(jobs)} episodes already done, {len(jobs)} to run", flush=True)

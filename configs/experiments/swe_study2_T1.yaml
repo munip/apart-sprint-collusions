@@ -1,0 +1,14 @@
+# SWE study 2 (pre-registered in docs/PREREG.md section 6). Run after swe_screen; set `tasks` to the
+# task(s) that passed the screen (best first; one task = 20 episodes, ~2 h with 2 workers).
+# 2 teams x {no intervention, QA verifier} x seeds 0-4.
+#   clab run configs\experiments\swe_study2_T1.yaml --out runs\swe_study2_T1 --workers 2 --role default=ollama_cloud/gemma4:31b
+#   clab replay runs\swe_study2 --monitors M1 M3 M4 --observability full
+scenario: swe
+profile: free_pinned
+tasks: [T1]            # T1 half of study 2, run by a collaborator (PREREG 6b)
+conditions: [C1_honest_team, C3_collude_overt]
+seeds: [0, 1, 2, 3, 4]
+gate_arms:
+  - peer: none
+  - peer: verifier
+cap_usd: 10
