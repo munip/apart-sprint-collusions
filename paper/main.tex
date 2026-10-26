@@ -29,8 +29,7 @@
 %------------------------------------------------------------------ title block (template layout)
 \begin{center}
 \rule{0.85\textwidth}{1.6pt}\\[0.9em]
-{\LARGE\bfseries Verify, Don’t Decode: When Trusted Agents Disrupt\\[0.2em] LLM Collusion in Software Engineering and Double-Auction Markets
-\footnote{Research
+{\LARGE\bfseries Verify, Don’t Decode: When Trusted Agents Disrupt\\[0.2em] LLM Collusion in Software Engineering and Double-Auction Markets\footnote{Research
 conducted at the \href{https://apartresearch.com}{AI Collusion Research Sprint}, October 2026.}}\\[0.7em]
 \rule{0.85\textwidth}{0.6pt}\\[1.0em]
 Muniraju Pulipalyam\\ Independent\\[0.7em]
@@ -161,10 +160,10 @@ and the reviewer was honest by construction. Paired market runs diverge before t
 set the sample size and forced two recorded model changes for the chain study (\texttt{PREREG} 9c--9d); its
 revision (9e) is exploratory.
 A trusted publisher of the competitive benchmark was the cheapest effective remedy against open collusion,
-and useless against a hidden scheme. Sellers are all AI agents, hybrid human and agent combination not tested.
+and useless against a hidden scheme. All sellers are AI agents; mixed human--agent markets were not tested.
 \textbf{Future work.} Injection and sting tests with agents that reliably use the code; calibrating honeypots on
 honest reviewers; larger SWE samples, and checking each machine's grading environment before runs. Giving the verifier a hold right, and probes that need no reply (a codebook sting,
-implemented; a leniency offer), are natural extensions. \emph{Effects of active human participants on seller side is a core capability to study.}.
+implemented; a leniency offer), are natural extensions. \emph{The effect of active human participants on the seller side is a core question to study.}
 
 \section{Conclusion}
 Trusted agents can disrupt LLM collusion without decoding it, but only some kinds. A trusted entrant admitted after
@@ -182,7 +181,7 @@ steganographic schemes are published ones; no novel evasion technique is release
 
 \section*{Author Contributions}
 Muniraju Pulipalyam conceived the project and the chain-of-monitors topology, set the research questions, ran the
-experiments and reviewed every result; Thanks to Abdurrachman Mappuji for generously sharing Claude code workspace , validating the idea and running a few experiments independently. Claude (Anthropic) implemented most of the code and helped draft the report, which Muniraju validated, tested edited and enhanced.
+experiments and reviewed every result. Thanks to Abdurrachman Mappuji for generously sharing a Claude Code workspace, validating the idea and running a few experiments independently. Claude (Anthropic) implemented most of the code and helped draft the report, which Muniraju validated, tested, edited and enhanced.
 
 {\footnotesize
 \setlength{\bibsep}{1pt}
@@ -195,6 +194,6 @@ experiments and reviewed every result; Thanks to Abdurrachman Mappuji for genero
 \section*{LLM Usage Statement}
 We used Claude (Anthropic) extensively to write most of the harness and analysis code, analyse run logs and draft
 this report. The author designed the study, chose the research questions and the monitoring topology, ran the
-experiments and checked results against the logs; all numbers come from the repository's analysis scripts. Gemini with Antigravity was used to review the report. Codex for code review and OpenCode was used to build initial harness and test scripts before the weekend hackathon. The author validated, tested, edited and enhanced every part of the code and report.
+experiments and checked results against the logs; all numbers come from the repository's analysis scripts. Gemini (with Antigravity) was used to review the report, Codex for code review, and OpenCode to build the initial harness and test scripts before the weekend hackathon. The author validated, tested, edited and enhanced every part of the code and report.
 
 \end{document}
