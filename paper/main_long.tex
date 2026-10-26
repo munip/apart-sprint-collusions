@@ -30,7 +30,7 @@
 {\LARGE\bfseries VERIFY, DON'T DECODE: TRUSTED AGENTS FOR\\[0.2em] DISRUPTING LLM COLLUSION\footnote{Research
 conducted at the \href{https://apartresearch.com}{AI Collusion Research Sprint}, October 2026.}}\\[0.7em]
 \rule{0.85\textwidth}{0.6pt}\\[1.2em]
-Muniraju Pulipalyam \qquad Abdurrachman\\ Independent\\[0.9em]
+Muniraju Pulipalyam\\ Independent\\[0.9em]
 \textbf{With}\\ Apart Research\\[1.2em]
 {\large\bfseries Abstract}
 \end{center}
@@ -267,6 +267,7 @@ quieter and less likely to be announced in chat, which would remove the signal t
 none of our runs shows such learning.
 \item \textbf{Hidden channels were rarely used.} The A5 sellers seldom executed their price code, so the
 injection attack and the codebook sting were barely tested.
+\item \textbf{No human sellers.} Sellers are all AI agents, hybrid human and agent combination not tested.
 \item \textbf{Assumptions.} Agents cannot write the log, reach the monitor or bypass the gate (true by
 construction here; a deployment must enforce it). The reviewer was honest by construction; a coalition including
 it is out of scope. Paired market runs diverge before the intervention, which our before/after difference only
@@ -280,7 +281,7 @@ amendments for the chain study, recorded before its data (\texttt{PREREG} 9c--9d
 entrant still disrupt collusion that nobody instructed, and do layered, isolated monitors hold when colluders learn
 from feedback? Also: injection and sting tests with agents that reliably use the code; calibrating honeypots on
 honest reviewers; larger SWE samples, with each machine's grading environment checked before runs; a
-\textsc{Hold} right for the verifier; probes that need no reply (a leniency offer); larger and earlier entry.
+\textsc{Hold} right for the verifier; probes that need no reply (a leniency offer); larger and earlier entry. \emph{Effects of  as active participants on seller side is a core capability to study}.
 
 %------------------------------------------------------------------
 \section{Conclusion}
@@ -306,7 +307,8 @@ ones (trailing-digit price signalling). No novel evasion technique is released.
 
 \section*{Author Contributions}
 Muniraju Pulipalyam conceived the project and the chain-of-monitors topology, set the research questions, ran the
-experiments and reviewed every result; Abdurrachman as a collaborator validated the idea, independently verified experiments and ran parts of SWE study 2 on his own machine. Claude (Anthropic) implemented most of the code and helped draft the report, which Muniraju edited.
+experiments and reviewed every result; Thanks to Abdurrachman Mappuji for generously sharing Claude code workspace , validating the idea and running a few experiments independently. Claude (Anthropic) implemented most of the code and helped draft the report, which Muniraju validated, tested edited and enhanced.
+
 
 {\small
 \bibliographystyle{plainnat}
