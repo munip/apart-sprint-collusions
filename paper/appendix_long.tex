@@ -1,3 +1,8 @@
+\renewcommand{\thefigure}{A.\arabic{figure}}
+\setcounter{figure}{0}
+\renewcommand{\thetable}{A.\arabic{table}}
+\setcounter{table}{0}
+
 \section{Harness validation with scripted agents}\label{app:scripted}
 Before the LLM study we validated the harness and monitors with \emph{scripted} agents: seeded policies with
 paraphrase sampling that act through the same logged tools as LLM agents, which gives exact ground truth at

@@ -12,6 +12,7 @@ paper/*.bbl
 paper/*.blg
 paper/*.fls
 paper/*.fdb_latexmk
+*.exe
 .pytest_cache/
 .venv/
 reports/*/
