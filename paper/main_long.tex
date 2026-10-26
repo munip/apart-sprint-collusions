@@ -27,8 +27,7 @@
 %------------------------------------------------------------------ title block (template layout)
 \begin{center}
 \rule{0.85\textwidth}{1.6pt}\\[0.9em]
-{\LARGE\bfseries Verify, Don’t Decode: When Trusted Agents Disrupt\\[0.2em] LLM Collusion in Software Engineering and Double-Auction Markets
-\footnote{Research
+{\LARGE\bfseries Verify, Don’t Decode: When Trusted Agents Disrupt\\[0.2em] LLM Collusion in Software Engineering and Double-Auction Markets\footnote{Research
 conducted at the \href{https://apartresearch.com}{AI Collusion Research Sprint}, October 2026.}}\\[0.7em]
 \rule{0.85\textwidth}{0.6pt}\\[1.2em]
 Muniraju Pulipalyam\\ Independent\\[0.9em]
@@ -268,7 +267,7 @@ quieter and less likely to be announced in chat, which would remove the signal t
 none of our runs shows such learning.
 \item \textbf{Hidden channels were rarely used.} The A5 sellers seldom executed their price code, so the
 injection attack and the codebook sting were barely tested.
-\item \textbf{No human sellers.} Sellers are all AI agents, hybrid human and agent combination not tested.
+\item \textbf{No human sellers.} All sellers are AI agents; mixed human--agent markets were not tested.
 \item \textbf{Assumptions.} Agents cannot write the log, reach the monitor or bypass the gate (true by
 construction here; a deployment must enforce it). The reviewer was honest by construction; a coalition including
 it is out of scope. Paired market runs diverge before the intervention, which our before/after difference only
@@ -282,7 +281,7 @@ amendments for the chain study, recorded before its data (\texttt{PREREG} 9c--9d
 entrant still disrupt collusion that nobody instructed, and do layered, isolated monitors hold when colluders learn
 from feedback? Also: injection and sting tests with agents that reliably use the code; calibrating honeypots on
 honest reviewers; larger SWE samples, with each machine's grading environment checked before runs; a
-\textsc{Hold} right for the verifier; probes that need no reply (a leniency offer); larger and earlier entry. \emph{Effects of active human participants on seller side is a core capability to study.}.
+\textsc{Hold} right for the verifier; probes that need no reply (a leniency offer); larger and earlier entry. \emph{The effect of active human participants on the seller side is a core question to study.}
 
 %------------------------------------------------------------------
 \section{Conclusion}
@@ -308,7 +307,7 @@ ones (trailing-digit price signalling). No novel evasion technique is released.
 
 \section*{Author Contributions}
 Muniraju Pulipalyam conceived the project and the chain-of-monitors topology, set the research questions, ran the
-experiments and reviewed every result; Thanks to Abdurrachman Mappuji for generously sharing Claude code workspace , validating the idea and running a few experiments independently. Claude (Anthropic) implemented most of the code and helped draft the report, which Muniraju validated, tested edited and enhanced.
+experiments and reviewed every result. Thanks to Abdurrachman Mappuji for generously sharing a Claude Code workspace, validating the idea and running a few experiments independently. Claude (Anthropic) implemented most of the code and helped draft the report, which Muniraju validated, tested, edited and enhanced.
 
 
 {\small
@@ -322,6 +321,6 @@ experiments and reviewed every result; Thanks to Abdurrachman Mappuji for genero
 \section*{LLM Usage Statement}
 We used Claude (Anthropic) extensively to write most of the harness and analysis code, analyse run logs and draft
 this report. The author designed the study, chose the research questions and the monitoring topology, ran the
-experiments and checked results against the logs; all numbers come from the repository's analysis scripts. Gemini with Antigravity was used to review the report. Codex for code review and OpenCode was used to build initial harness and test scripts before the weekend hackathon. The author validated, tested, edited and enhanced every part of the code and report.
+experiments and checked results against the logs; all numbers come from the repository's analysis scripts. Gemini (with Antigravity) was used to review the report, Codex for code review, and OpenCode to build the initial harness and test scripts before the weekend hackathon. The author validated, tested, edited and enhanced every part of the code and report.
 
 \end{document}
