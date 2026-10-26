@@ -12,13 +12,13 @@
 \usepackage[numbers,sort&compress]{natbib}
 \usepackage[colorlinks=true,linkcolor=black,citecolor=black,urlcolor=blue!60!black]{hyperref}
 \setlist{nosep,leftmargin=*}
-\setlength{\parskip}{0.35em}\setlength{\parindent}{0pt}
-\captionsetup{font=small,labelfont=bf,skip=3pt}
-\setlength{\textfloatsep}{8pt plus 2pt minus 2pt}
+\setlength{\parskip}{0.28em}\setlength{\parindent}{0pt}
+\captionsetup{font=small,labelfont=bf,skip=2pt}
+\setlength{\textfloatsep}{6pt plus 2pt minus 2pt}
 \titleformat{\section}{\large\bfseries}{\thesection.}{0.5em}{}
 \titleformat{\subsection}{\normalsize\bfseries}{\thesubsection}{0.5em}{}
-\titlespacing*{\section}{0pt}{0.9em}{0.3em}
-\titlespacing*{\subsection}{0pt}{0.6em}{0.15em}
+\titlespacing*{\section}{0pt}{0.75em}{0.2em}
+\titlespacing*{\subsection}{0pt}{0.5em}{0.1em}
 \renewcommand{\thefootnote}{\arabic{footnote}}
 \renewcommand{\textsc}[1]{{\footnotesize\MakeUppercase{#1}}}   % the font has no small caps
 \newcommand{\Mone}{M1}\newcommand{\Mtwo}{M2}\newcommand{\Mthree}{M3}\newcommand{\Mfour}{M4}
@@ -127,7 +127,7 @@ model used every turn without acting (we added a wrap-up nudge and a forced revi
 tester obeyed the probe because nothing prohibited it (we added the policy line). One episode with no successful
 model call was excluded and not replaced ($n=4$ in that cell).
 
-\textbf{Chain of monitors.} Following AI control (Figure~\ref{fig:topology}, Appendix~\ref{app:chain}), a
+\textbf{Chain of monitors.} Following AI control (see Appendix~\ref{app:chain}), a
 \emph{weak trusted} inner desk (gpt-oss 20B) reads the board, prices and sellers' messages every hour and
 may intervene; a \emph{capable untrusted} reviewer (Nemotron Ultra 550B), hidden from sellers, reviews
 only prices, trades and the desk's decisions every three hours and may escalate. Each review includes a synthetic
@@ -184,10 +184,11 @@ Muniraju Pulipalyam conceived the project and the chain-of-monitors topology, se
 experiments and reviewed every result; Abdurrachman as a collaborator validated the idea, independently verified experiments and ran parts of SWE study 2 on his own machine. Claude (Anthropic) implemented most of the code and helped draft the report, which Muniraju edited.
 
 {\footnotesize
-\setlength{\bibsep}{1pt}
+\setlength{\bibsep}{0pt}
 \bibliographystyle{plainnat}
 \bibliography{refs}}
 
+\clearpage
 \appendix
 \input{appendix.tex}
 

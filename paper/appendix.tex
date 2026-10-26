@@ -1,3 +1,8 @@
+\renewcommand{\thefigure}{A.\arabic{figure}}
+\setcounter{figure}{0}
+\renewcommand{\thetable}{A.\arabic{table}}
+\setcounter{table}{0}
+
 \section{Harness validation with scripted agents}\label{app:scripted}
 Before the LLM study we validated the harness and monitors with \emph{scripted} agents: seeded policies with
 paraphrase sampling that act through the same logged tools as LLM agents, which gives exact ground truth at
@@ -26,7 +31,7 @@ trusted entrant cut the collusion index of collusive markets from 0.96 to 0.59 w
 
 \section{Chain of monitors: full design}\label{app:chain}
 \begin{figure}[!htbp]\centering
-\includegraphics[width=0.62\textwidth]{figs/fig_topology_sketch.png}
+\includegraphics[width=0.48\textwidth]{figs/fig_topology_sketch.png}
 \caption{Proposed topology (author's sketch). Inner monitors read probes attached to agents; outer monitors
 connect only to the next ring in and are invisible to agents; trust is highest within a ring.}\label{fig:topology}
 \end{figure}
