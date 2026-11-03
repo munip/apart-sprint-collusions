@@ -1,7 +1,8 @@
 # Lexsi Part B: Collusion-Watch
 
 The Nov 3 Track 2 direction combines statements 2, 3, 4 and 5: build a
-collusion-monitoring benchmark, test turn-by-turn and multilingual behavior, and
+collusion-monitoring benchmark with chjain of monitors, test turn-by-turn
+add multilingual behavior, and observe same collusions behovior scenaerios,
 compare plain fine-tuning with safety-hardened fine-tuning. The first repository
 deliverable is an English dataset export from existing market runs. Model
 training, SafeTune evaluation and multilingual augmentation are separate stages
