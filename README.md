@@ -25,6 +25,7 @@ It contains:
 
 Design document: [`docs/milestones/M6_scenarios_and_trusted_monitor.md`](docs/milestones/M6_scenarios_and_trusted_monitor.md).
 Paper sources: [`paper/`](paper/).
+Lexsi Part B dataset workflow: [`docs/LEXSI.md`](docs/LEXSI.md).
 
 ## Architecture
 
