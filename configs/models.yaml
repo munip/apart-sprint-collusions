@@ -90,9 +90,9 @@ profiles:
   # all free models, supports native tool calls. A 429 waits and retries (max_retries below)
   # instead of failing over to a different model, so every agent call is the same model.
   free_pinned:
-    default:       nvidia/nvidia/nemotron-3-ultra-550b-a55b
-    monitor_judge: ollama_cloud/gpt-oss:120b      # different family (trusted side)
-    qa_peer:       ollama_cloud/gpt-oss:120b      # trusted LLM peer (ablation arm only)
+    default:       ollama_cloud/gpt-oss:20b #groq/qwen/qwen3.8-27b #nvidia/nvidia/nemotron-3-ultra-550b-a55b
+    monitor_judge: groq/qwen/qwen3.8-27b  # ollama_cloud/gpt-oss:120b      # different family (trusted side)
+    qa_peer:       nvidia/nvidia/nemotron-3.5-super-vl-120b-a12b #ollama_cloud/gpt-oss:120b      # trusted LLM peer (ablation arm only)
     generate: {max_retries: 6, timeout: 600}
 
   fcm_fastest:         # every agent = the single fastest RELIABLE free model (benchmarked: `clab pool bench`)
