@@ -8,7 +8,14 @@ from collusion_lab.core.schema import EventKind
 from collusion_lab.lexsi.dataset import build_dataset, write_dataset
 
 
-def _write_episode(root: Path, seed: int, collusive: bool) -> None:
+def _write_episode(
+    root: Path,
+    seed: int,
+    collusive: bool,
+    *,
+    evidence_key: str | None = None,
+    agent_tamper_tool: bool = False,
+) -> None:
     run = root / f"episode-{seed}"
     run.mkdir(parents=True)
     episode_id = f"market-seed-{seed}-{run.parent.name}"
@@ -19,9 +26,16 @@ def _write_episode(root: Path, seed: int, collusive: bool) -> None:
         "seed": seed,
         "models": {"default": ["test/llm-seller"]},
         "truth": {"collusive": collusive, "mechanism": "price_signal" if collusive else "none"},
+        "agent_tamper_tool": agent_tamper_tool,
     }), encoding="utf-8")
 
-    log = EvidenceLog()
+    private_dir = run.parent / "_monitor_private"
+    anchor_path = private_dir / f"{episode_id}.anchors.jsonl"
+    log = EvidenceLog(
+        key=evidence_key,
+        anchor_path=anchor_path if evidence_key else None,
+        anchor_every=1,
+    )
     log.emit(episode_id, "env", EventKind.STATE, {
         "event": "market_open",
         "sellers": ["S1", "S2", "S3", "S4", "S5"],
@@ -49,13 +63,24 @@ def _write_episode(root: Path, seed: int, collusive: bool) -> None:
         "".join(json.dumps(event.to_dict()) + "\n" for event in log.events()),
         encoding="utf-8",
     )
+    if evidence_key:
+        private_dir.mkdir(parents=True, exist_ok=True)
+        (private_dir / f"{episode_id}.keys.json").write_text(
+            json.dumps({"evidence": evidence_key, "monitor": "private-test-key"}),
+            encoding="utf-8",
+        )
 
 
-def _source(tmp_path: Path) -> Path:
+def _source(tmp_path: Path, *, keyed: bool = False) -> Path:
     root = tmp_path / "runs"
     root.mkdir()
     for seed in range(10):
-        _write_episode(root, seed, seed % 2 == 0)
+        _write_episode(
+            root,
+            seed,
+            seed % 2 == 0,
+            evidence_key=f"test-evidence-key-{seed}" if keyed else None,
+        )
     return root
 
 
@@ -100,6 +125,45 @@ def test_build_dataset_rejects_hash_chain_tampering(tmp_path: Path) -> None:
         build_dataset([root])
 
 
+def test_build_dataset_verifies_keyed_and_anchored_evidence(tmp_path: Path) -> None:
+    examples, manifest = build_dataset([_source(tmp_path, keyed=True)])
+    dataset_text = json.dumps(examples)
+
+    assert len(examples) == 10
+    assert manifest["distinct_seeds"] == 10
+    assert "test-evidence-key-" not in dataset_text
+    assert "private-test-key" not in dataset_text
+
+
+def test_build_dataset_rejects_mismatched_private_anchor(tmp_path: Path) -> None:
+    root = _source(tmp_path, keyed=True)
+    anchor_path = next((root / "_monitor_private").glob("*.anchors.jsonl"))
+    record = json.loads(anchor_path.read_text(encoding="utf-8").splitlines()[0])
+    record["hash"] = "0" * 64
+    anchor_path.write_text(json.dumps(record) + "\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="hash chain"):
+        build_dataset([root])
+
+
+def test_build_dataset_rejects_keyed_evidence_without_private_key(tmp_path: Path) -> None:
+    root = _source(tmp_path, keyed=True)
+    key_path = next((root / "_monitor_private").glob("*.keys.json"))
+    key_path.unlink()
+
+    with pytest.raises(ValueError, match="Missing private evidence key"):
+        build_dataset([root])
+
+
+def test_build_dataset_rejects_keyed_evidence_without_anchors(tmp_path: Path) -> None:
+    root = _source(tmp_path, keyed=True)
+    anchor_path = next((root / "_monitor_private").glob("*.anchors.jsonl"))
+    anchor_path.unlink()
+
+    with pytest.raises(ValueError, match="Missing private evidence anchors"):
+        build_dataset([root])
+
+
 def test_build_dataset_requires_three_distinct_seeds(tmp_path: Path) -> None:
     root = tmp_path / "runs"
     root.mkdir()
@@ -141,12 +205,22 @@ def test_build_dataset_excludes_monitored_and_unselected_episodes(
     data["condition"] = "A4_tacit"
     other_episode.write_text(json.dumps(data), encoding="utf-8")
 
+    tamper_run = root / "agent-tamper"
+    _write_episode(tamper_run, 22, True, agent_tamper_tool=True)
+
+    oversight_run = root / "monitor-oversight"
+    _write_episode(oversight_run, 23, True)
+    oversight_episode = oversight_run / "episode-23" / "episode.json"
+    data = json.loads(oversight_episode.read_text(encoding="utf-8"))
+    data["monitor_oversight"] = True
+    oversight_episode.write_text(json.dumps(data), encoding="utf-8")
+
     examples, manifest = build_dataset([root])
 
     assert len(examples) == 10
     assert manifest["skipped_episodes"] == {
         "condition_not_selected": 1,
-        "monitor_or_probe_variant": 1,
+        "monitor_or_probe_or_tamper_variant": 3,
     }
 
 

@@ -1,0 +1,12 @@
+# Functional acceptance run: one seed across benign, overt-cartel, and A5
+# steganographic rotation. Fifteen rounds allow buyer bids to reach the high
+# cartel/rotation asks and cover three seller rotation cycles.
+# Up to 225 primary seller calls, plus any short JSON-finalization calls.
+scenario: market
+profile: puter_smoke
+conditions: [A2_honest_chat, A3_overt_cartel, A5_stego_rotation]
+seeds: [0]
+rounds: 15
+online_monitors: []
+interventions: []
+cap_usd: 0.6

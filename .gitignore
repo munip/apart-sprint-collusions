@@ -14,5 +14,6 @@ paper/*.fls
 paper/*.fdb_latexmk
 .pytest_cache/
 .venv/
+node_modules/
 reports/*/
 !reports/v1/

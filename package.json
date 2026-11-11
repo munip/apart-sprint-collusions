@@ -1,0 +1,12 @@
+{
+  "name": "collusion-lab-puter-gateway",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "puter-gateway": "node scripts/puter_gateway.mjs",
+    "test:puter": "node --test scripts/puter_gateway.test.mjs"
+  },
+  "dependencies": {
+    "@heyputer/puter.js": "2.6.5"
+  }
+}

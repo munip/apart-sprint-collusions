@@ -1,0 +1,9 @@
+# Free-provider pilot only: 3 seeds x 3 conditions x 5 rounds.
+# With 5 LLM sellers, this is about 225 seller calls; run with one worker.
+scenario: market
+profile: free_gpt_oss20b_failover
+conditions: [A2_honest_chat, A3_overt_cartel, A5_stego_rotation]
+seeds: [0, 1, 2]
+rounds: 5
+online_monitors: []
+cap_usd: 0.0

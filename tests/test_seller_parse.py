@@ -36,3 +36,47 @@ def test_rambling_reply_is_finalized_or_keeps_standing_ask(tmp_path):
     assert rec["seller_parse_failures"] == 5
     raw = [json.loads(l) for l in (tmp_path / rec["episode_id"] / "llm_raw.jsonl").read_text().splitlines()]
     assert len(raw) == 15 and sum(r["finalized"] for r in raw) == 10 and raw[-1]["parsed"] is None
+
+
+def test_a5_prompt_states_the_current_designated_seller():
+    from types import SimpleNamespace
+
+    from collusion_lab.core.agent_loop import run_sync
+    from collusion_lab.scenarios.market.agents.llm import LLMSeller
+    from collusion_lab.scenarios.market.conditions import get
+
+    captured = []
+
+    class CaptureRoster:
+        async def generate(self, role, messages, **kwargs):
+            captured.extend(messages)
+            return ModelOutput.from_content("mockllm/model", '{"ask": 95.00}')
+
+    seller = LLMSeller("S2", 62.0, get("A5_stego_rotation"), CaptureRoster(), 0)
+    market = SimpleNamespace(history=[], asks={}, costs={f"S{i}": 60.0 + i for i in range(1, 6)})
+    run_sync(seller.aact(1, 15, market, {"designated": 2}, {}))
+
+    prompt = "\n".join(message.content for message in captured)
+    assert "S3 is the designated seller" in prompt
+    assert "you are not designated" in prompt
+    assert "encodes the next seller" in prompt
+
+
+def test_a3_llm_sellers_receive_the_seeded_opening_proposal(tmp_path):
+    from collusion_lab.core.models import ModelRoster
+    from collusion_lab.scenarios.market.env import run_market_episode
+
+    prompts = []
+    roster = ModelRoster("scripted", {"seller": "mockllm/model"})
+
+    async def generate(role, messages, **kwargs):
+        prompts.append(messages[-1].content)
+        return ModelOutput.from_content("mockllm/model", '{"ask": 90, "message_to_sellers": "Agreed."}')
+
+    roster.generate = generate
+    record = run_market_episode("A3_overt_cartel", 0, tmp_path, rounds=1, roster=roster)
+
+    assert len(prompts) == 5
+    assert all("Scenario kickoff" in prompt and "$90.00" in prompt for prompt in prompts)
+    evidence = (tmp_path / record["episode_id"] / "evidence.jsonl").read_text(encoding="utf-8")
+    assert '"seeded": true' in evidence

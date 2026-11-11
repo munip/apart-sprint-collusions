@@ -23,6 +23,9 @@ def test_resolve_openai_compatible_and_router(monkeypatch):
     assert f.kind == "router" and f.base_url.endswith(":19280/v1") and f.family == "router:dynamic"
     o = resolve("ollama/gemma2:2b")
     assert o.kind == "native" and o.family == "gemma" and o.tools == "auto"
+    p = resolve("puter/openai/gpt-5.4-nano")
+    assert p.kind == "openai_compat" and p.base_url == "http://127.0.0.1:3800/v1"
+    assert not p.needs_key
     monkeypatch.setenv("OLLAMA_BASE_URL", "http://192.168.1.5:11434/v1")
     assert resolve("ollama/gemma2:2b").base_url == "http://192.168.1.5:11434/v1"
 
@@ -35,7 +38,8 @@ def test_family(model, fam):
 
 
 def test_profiles_keep_monitor_family_separate():
-    for prof in ("free", "free_homogeneous", "free_weak_monitor", "local", "cloud", "mixed"):
+    for prof in ("free", "free_homogeneous", "free_weak_monitor", "free_gpt_oss20b_failover",
+                 "local", "cloud", "mixed"):
         r = ModelRoster(prof)
         assert not any("shares model family" in w for w in r.check_separation()), prof
     assert any("shares model family" in w for w in ModelRoster("same_family", {}).check_separation()) is False  # allowed ablation
@@ -45,7 +49,7 @@ def test_profiles_keep_monitor_family_separate():
 
 class Boom:
     async def generate(self, *a, **k):
-        raise RuntimeError("429 rate limit")
+        raise RuntimeError("temporary failure")
 
 
 def test_fallback_chain_uses_next_model():
@@ -58,6 +62,42 @@ def test_fallback_chain_uses_next_model():
     roster2._models["mockllm/a"] = Boom()
     with pytest.raises(AllModelsFailed):
         run_sync(roster2.generate("implementer", []))
+
+
+def test_rate_limit_fails_over_and_cools_down_provider(monkeypatch):
+    from inspect_ai.model import ChatMessageUser
+    from collusion_lab.core.models import RateLimiter
+
+    monkeypatch.setenv("GROQ_API_KEY", "gsk_test_123456")
+    monkeypatch.setenv("NVIDIA_API_KEY", "nvapi_test_123456")
+    monkeypatch.setattr(RateLimiter, "reserve", classmethod(lambda cls, provider, rpm: 0.0))
+    roster = ModelRoster("scripted", {
+        "implementer": "groq/openai/gpt-oss-20b,nvidia/openai/gpt-oss-20b",
+    })
+    groq_calls = []
+    nvidia_calls = []
+    retries = []
+
+    class RateLimited:
+        async def generate(self, *a, **k):
+            groq_calls.append(1)
+            retries.append(k["config"].max_retries)
+            raise RuntimeError("429 rate limit")
+
+    class Available:
+        async def generate(self, *a, **k):
+            nvidia_calls.append(1)
+            retries.append(k["config"].max_retries)
+            return _out("ok")
+
+    monkeypatch.setattr(roster, "_get", lambda r: RateLimited() if r.provider == "groq" else Available())
+    first = run_sync(roster.generate("implementer", [ChatMessageUser(content="hi")]))
+    second = run_sync(roster.generate("implementer", [ChatMessageUser(content="hi")]))
+    assert first.metadata["clab_spec"] == second.metadata["clab_spec"] == "nvidia/openai/gpt-oss-20b"
+    assert groq_calls == [1]
+    assert nvidia_calls == [1, 1]
+    assert retries == [0, 0, 0]
+    assert roster.meter.failures == {"groq/openai/gpt-oss-20b": 1}
 
 
 def test_parse_json_call_variants():

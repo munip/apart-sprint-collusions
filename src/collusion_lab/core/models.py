@@ -149,6 +149,8 @@ class ModelRoster:
         self._json_mode: set[str] = set()          # specs that rejected native tool calls
         self._warned: set[str] = set()
         self._warn_count: dict[str, int] = {}
+        self._provider_cooldowns: dict[str, float] = {}
+        self._cooldown_lock = threading.Lock()
 
     # ------------------------------------------------------------------ mapping
     def chain(self, role: str) -> list[str]:
@@ -223,19 +225,28 @@ class ModelRoster:
         `.metadata['clab_spec']` set to the spec that answered."""
         from inspect_ai.model import GenerateConfig
         errors = []
-        for spec in self.chain(role):
-            if spec in SCRIPTED:
-                continue
+        chain = [spec for spec in self.chain(role) if spec not in SCRIPTED]
+        for spec in chain:
             r = resolve(spec)
             if r.needs_key and not r.has_key:
                 errors.append(f"{spec}: no API key")
+                continue
+            with self._cooldown_lock:
+                cooldown_until = self._provider_cooldowns.get(r.provider, 0.0)
+            now = time.monotonic()
+            if cooldown_until > now:
+                remaining = cooldown_until - now
+                errors.append(f"{spec}: provider rate-limit cooldown ({remaining:.0f}s remaining)")
                 continue
             use_tools = tools if (tools and self.tool_mode(role, spec) != "json") else []
             cfg = {**self.gen_defaults, **config}
             local = r.provider in LOCAL_COMPUTE
             if local:   # a timeout would abandon a generation that keeps running and piles up behind the next call
                 cfg.update(attempt_timeout=None, timeout=None, max_retries=0)
-            elif len([x for x in self.chain(role) if x not in SCRIPTED]) == 1:
+            elif len(chain) > 1:
+                # The explicit fallback chain is the retry strategy; fail over immediately.
+                cfg["max_retries"] = 0
+            else:
                 # pinned to one remote model: there is nothing to fail over to, so wait out 429s instead of
                 # dropping the turn (Inspect backs off exponentially between retries)
                 cfg["max_retries"] = max(int(cfg.get("max_retries") or 0), PINNED_RETRIES)
@@ -255,6 +266,14 @@ class ModelRoster:
                     self._json_mode.add(spec)            # retry this model in prompted-JSON tool mode
                     raise ToolModeSwitch(spec) from e
                 self.meter.fail(spec)
+                if _is_rate_limited(e):
+                    cooldown = max(0.0, r.rate_limit_cooldown_s)
+                    if cooldown:
+                        with self._cooldown_lock:
+                            self._provider_cooldowns[r.provider] = max(
+                                self._provider_cooldowns.get(r.provider, 0.0),
+                                time.monotonic() + cooldown,
+                            )
                 errors.append(f"{spec}: {type(e).__name__}: {msg[:160]}")
                 continue
             if out.stop_reason == "model_length" and not out.completion and not out.message.tool_calls:
@@ -282,6 +301,17 @@ class ToolModeSwitch(RuntimeError):
     def __init__(self, spec: str):
         super().__init__(spec)
         self.spec = spec
+
+
+def _is_rate_limited(error: Exception) -> bool:
+    response = getattr(error, "response", None)
+    status_code = getattr(error, "status_code", None) or getattr(response, "status_code", None)
+    if status_code == 429:
+        return True
+    message = str(error).lower()
+    return any(marker in message for marker in (
+        "429", "rate limit", "rate_limit", "too many requests", "quota exceeded",
+    ))
 
 
 def _tools_unsupported(msg: str) -> bool:

@@ -18,18 +18,63 @@ from typing import Iterable, Iterator
 from .schema import Event, EventKind
 
 
-def _digest(prev: str, body: dict) -> str:
-    raw = prev + json.dumps(body, sort_keys=True, default=str)
+def _digest(prev: str, body: dict, key: str | None = None) -> str:
+    raw = (key or "") + prev + json.dumps(body, sort_keys=True, default=str)
     return hashlib.sha256(raw.encode()).hexdigest()
 
 
+def _load_anchors(path: Path) -> dict[int, str]:
+    anchors: dict[int, str] = {}
+    for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+        if not line.strip():
+            continue
+        try:
+            record = json.loads(line)
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"invalid anchor JSON at {path}:{line_number}") from exc
+        if (
+            not isinstance(record, dict)
+            or type(record.get("seq")) is not int
+            or record["seq"] < 0
+            or not isinstance(record.get("hash"), str)
+            or not record["hash"]
+        ):
+            raise ValueError(f"invalid anchor record at {path}:{line_number}")
+        if record["seq"] in anchors:
+            raise ValueError(f"duplicate anchor sequence {record['seq']} at {path}:{line_number}")
+        anchors[record["seq"]] = record["hash"]
+    return anchors
+
+
 class EvidenceLog:
-    def __init__(self, path: Path | None = None):
+    def __init__(
+        self,
+        path: Path | None = None,
+        *,
+        key: str | None = None,
+        anchor_path: Path | None = None,
+        anchor_every: int = 0,
+    ):
         self.path = Path(path) if path else None
+        self.key = key
+        self.anchor_path = Path(anchor_path) if anchor_path else None
+        self.anchor_every = max(0, int(anchor_every))
+        self._anchors: dict[int, str] = {}
         self._events: list[Event] = []
         if self.path:
             self.path.parent.mkdir(parents=True, exist_ok=True)
             self.path.write_text("")
+        if self.anchor_path:
+            self.anchor_path.parent.mkdir(parents=True, exist_ok=True)
+            if self.anchor_path.exists():
+                self._anchors = _load_anchors(self.anchor_path)
+
+    def _write_anchor(self, seq: int, digest: str) -> None:
+        if not self.anchor_path or not self.anchor_every or seq % self.anchor_every:
+            return
+        self._anchors[seq] = digest
+        with self.anchor_path.open("a", encoding="utf-8") as stream:
+            stream.write(json.dumps({"seq": seq, "hash": digest}) + "\n")
 
     # -- write side (environment only) ---------------------------------
     def append(self, ev: Event) -> Event:
@@ -37,8 +82,9 @@ class EvidenceLog:
         ev.prev_hash = self._events[-1].hash if self._events else "GENESIS"
         body = ev.to_dict()
         body.pop("hash", None)
-        ev.hash = _digest(ev.prev_hash, body)
+        ev.hash = _digest(ev.prev_hash, body, self.key)
         self._events.append(ev)
+        self._write_anchor(ev.seq, ev.hash)
         if self.path:
             with self.path.open("a") as f:
                 f.write(json.dumps(ev.to_dict(), default=str) + "\n")
@@ -60,17 +106,31 @@ class EvidenceLog:
 
     def verify_chain(self) -> bool:
         prev = "GENESIS"
-        for ev in self._events:
+        for index, ev in enumerate(self._events):
             body = ev.to_dict()
-            h = body.pop("hash")
-            if ev.prev_hash != prev or _digest(prev, body) != h:
+            digest = body.pop("hash", None)
+            if (
+                ev.seq != index
+                or ev.prev_hash != prev
+                or not digest
+                or _digest(prev, body, self.key) != digest
+            ):
                 return False
-            prev = h
-        return True
+            prev = digest
+        return all(
+            seq < len(self._events) and self._events[seq].hash == digest
+            for seq, digest in self._anchors.items()
+        )
 
     @staticmethod
-    def load(path: Path) -> "EvidenceLog":
-        log = EvidenceLog(None)
+    def load(
+        path: Path,
+        *,
+        key: str | None = None,
+        anchor_path: Path | None = None,
+        anchor_every: int = 0,
+    ) -> "EvidenceLog":
+        log = EvidenceLog(None, key=key, anchor_path=anchor_path, anchor_every=anchor_every)
         for line in Path(path).read_text().splitlines():
             if line.strip():
                 log._events.append(Event.from_dict(json.loads(line)))

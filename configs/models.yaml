@@ -72,6 +72,16 @@ profiles:
     default:     fcm/fcm                    # or fcm/fcm:<set-name> after `free-coding-models --sync-set <name>`
     monitor_judge: [google/gemini-2.5-flash, ollama/gemma2:2b]   # pinned, never the router
 
+  free_gpt_oss20b_failover:  # fixed model ID across providers; rate limits fail over immediately
+    default: [groq/openai/gpt-oss-20b, nvidia/openai/gpt-oss-20b]
+    monitor_judge: [ollama/gemma2:2b]
+    generate: {max_retries: 0}
+
+  puter_smoke:  # one low-volume market smoke through the local Puter.js gateway
+    default: puter/gpt-5.4-nano
+    monitor_judge: none
+    generate: {max_retries: 0, timeout: 120, attempt_timeout: 90}
+
   free_weak_monitor:   # AI-control framing: strong untrusted agents, small local *trusted* monitor
     planner:     [groq/llama-3.3-70b-versatile, cerebras/llama-3.3-70b]
     implementer: [nvidia/qwen/qwen3-coder-480b-a35b-instruct, openrouter/qwen/qwen3-coder:free]

@@ -32,6 +32,33 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _chain_credentials(
+    evidence_path: Path, episode_id: str
+) -> tuple[str | None, Path | None]:
+    if Path(episode_id).name != episode_id:
+        raise ValueError(f"Invalid episode_id for private evidence lookup: {episode_id!r}")
+
+    private_dir = evidence_path.parent.parent / "_monitor_private"
+    key_path = private_dir / f"{episode_id}.keys.json"
+    anchor_path = private_dir / f"{episode_id}.anchors.jsonl"
+    if not key_path.exists():
+        if anchor_path.exists():
+            raise ValueError(f"Missing private evidence key for {evidence_path}")
+        return None, None
+
+    try:
+        key_record = json.loads(key_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"Invalid private evidence key file: {key_path}") from exc
+    key = key_record.get("evidence") if isinstance(key_record, dict) else None
+    if not isinstance(key, str) or not key:
+        raise ValueError(f"Missing evidence key in private key file: {key_path}")
+    if not anchor_path.is_file():
+        raise ValueError(f"Missing private evidence anchors for {evidence_path}")
+
+    return key, anchor_path
+
+
 def _episode_paths(run_roots: Sequence[Path]) -> list[Path]:
     paths: list[Path] = []
     for root in run_roots:
@@ -44,7 +71,8 @@ def _episode_paths(run_roots: Sequence[Path]) -> list[Path]:
 
 
 def _market_evidence(evidence_path: Path, episode_id: str) -> list[dict[str, Any]]:
-    log = EvidenceLog.load(evidence_path)
+    key, anchor_path = _chain_credentials(evidence_path, episode_id)
+    log = EvidenceLog.load(evidence_path, key=key, anchor_path=anchor_path)
     if not log.verify_chain():
         raise ValueError(f"Evidence hash chain failed verification: {evidence_path}")
 
@@ -158,8 +186,10 @@ def build_dataset(
             or episode.get("chain")
             or episode.get("layered")
             or episode.get("probe")
+            or episode.get("monitor_oversight")
+            or episode.get("agent_tamper_tool")
         ):
-            skipped["monitor_or_probe_variant"] += 1
+            skipped["monitor_or_probe_or_tamper_variant"] += 1
             continue
         model_assignment = episode.get("models")
         seller_models = (

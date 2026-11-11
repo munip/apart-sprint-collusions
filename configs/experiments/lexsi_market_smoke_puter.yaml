@@ -1,0 +1,10 @@
+# Bounded Puter.js gateway routing check: one condition, one seed, two rounds.
+# Five sellers act per round; malformed outputs may trigger a short finalize call.
+scenario: market
+profile: puter_smoke
+conditions: [A2_honest_chat]
+seeds: [0]
+rounds: 2
+online_monitors: []
+interventions: []
+cap_usd: 0.1

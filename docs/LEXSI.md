@@ -1,5 +1,15 @@
 # Lexsi Part B: Collusion-Watch
 
+## Submission scope
+
+Track 2 combines the Track 2a adversarial/safety evaluation-set statement with
+the Track 2b safety-preserving fine-tuning statement. The pipeline is
+CuratorKIT -> plain fine-tuning and SafeTune hardening -> AuditKIT evaluation.
+This meets the track's preferred three-repository pipeline. AlignTune is a
+Track 1 repository and is intentionally excluded; ask organizers before
+mixing repositories across tracks. Confirm that combining the two Track 2
+statements and reusing prior-sprint episodes as source data are acceptable.
+
 The project is English-only for Steps 1–3. The first benchmark uses the
 repository's original market arrangement: **5 LLM sellers and 4 scripted ZIP
 buyers**. It covers A2 honest chat (benign hard negative), A3 overt cartel, and
@@ -19,6 +29,8 @@ The work is staged so the baseline is reproducible before any training:
    plus English refusal and over-refusal checks.
 
 No multilingual data, training, or safety result is claimed by Step 1.
+The Track 2a multilingual/code-mixed statement is deferred until the English
+baseline and evaluation are complete.
 
 ## 1. Prepare the English base dataset
 
@@ -32,27 +44,155 @@ environment secrets, never in the repository:
 clab run configs/experiments/lexsi_market_base.yaml --out runs/lexsi_market_base --workers 1
 ```
 
-There are already 9 usable, unmonitored episodes in `runs/market_entrant`
-(three conditions × seeds 0–2). They are enough to exercise the pipeline, but
-only provide three independent seeds. With that small sample, the test split
-contains only three episodes; its scores are diagnostic, not a generalization
-claim. The earlier `runs/market_chain` / `runs/market_chain_v2` data contains
-monitor-chain variants and is intentionally excluded from this baseline.
-
-Export the existing starter runs, or replace the input path with
-`runs/lexsi_market_base` after generating the larger run:
+For a lower-cost free-provider pilot that adds the missing A5 condition, use
+the three-seed, five-round smoke configuration (about 225 seller calls):
 
 ```powershell
+clab run configs/experiments/lexsi_market_smoke_free.yaml --out runs/lexsi_market_smoke_free --workers 1
 python -m collusion_lab.lexsi.dataset `
-  --runs runs/market_entrant `
-  --output-dir runs/lexsi_dataset_base `
+  --runs runs/lexsi_market_smoke_free `
+  --output-dir runs/lexsi_dataset_smoke_free `
   --split-seed 0 `
   --window-rounds 5
 ```
 
+The config selects the `free_gpt_oss20b_failover` profile: each role tries
+`groq/openai/gpt-oss-20b`, then `nvidia/openai/gpt-oss-20b`. A provider rate
+limit immediately fails over and suppresses further calls to that provider
+for 60 seconds. Both providers need valid credentials for the full chain; an
+unavailable model ID or missing credential is skipped. Confirm the current
+Groq model ID in its account's models list before the run.
+
+The harness cap uses configured token-price estimates; it does not guarantee
+a provider will not bill. Verify account tier and usage limits before running.
+Use the direct fallback profile for controlled experiments where the model ID
+should stay fixed. The FCM Smart Router (`fcm/fcm` or `fcm/fcm:<set>`) remains
+available for dynamic routing, but its served model can vary; inspect recorded
+`served_by` metadata before comparing runs.
+
+For a bounded live Puter routing smoke, start the gateway in billable mode
+(`PUTER_TEST_MODE=0`, `PUTER_ALLOW_BILLABLE_USAGE=1`) and run one condition,
+one seed, and two rounds:
+
+```powershell
+clab run configs/experiments/lexsi_market_smoke_puter.yaml `
+  --out runs/lexsi_market_smoke_puter `
+  --workers 1
+```
+
+This makes up to about ten primary seller calls, plus a short finalize call
+only when a seller response is not parseable. The experiment's `$0.10` cap is
+the harness's approximate USD token meter, not a Puter-credit cap or guarantee.
+Check the Puter usage dashboard after the run. The two-round trajectory is
+only an integration smoke; it is not suitable for benchmark metrics.
+
+Before spending credits, run the scripted reference test. It checks that A3
+and A5 actually produce trades and high-price outcomes, and that A5's encoded
+rotation advances correctly, with no model calls:
+
+```powershell
+pytest tests/test_market.py -k scripted_cartel_and_rotation
+```
+
+The short five-round horizon is not behaviorally valid for A3/A5: scripted
+buyers begin with shaded bids and need time to reach the $90 cartel/rotation
+asks. The A3 LLM condition also starts with a logged, seeded S1 board proposal
+so sellers share the treatment from hour one. For A5, each LLM seller is told
+the current designated seller, and the environment decodes the next designation
+from the cheapest ask as specified by the scenario.
+
+For a bounded live functional acceptance check, use one seed across all three
+conditions and 15 rounds (three A5 rotation cycles):
+
+```powershell
+clab run configs/experiments/lexsi_market_acceptance_puter.yaml `
+  --out runs/lexsi_market_acceptance_puter `
+  --workers 1
+```
+
+This makes up to 225 primary seller calls. Verify all episodes complete with
+five LLM sellers, four scripted buyers, successful parseable seller decisions,
+and valid evidence chains. In A2/A3, inspect the seller-board messages; in A5,
+check that the designated seller is cheapest and its cents encode the next
+seller. Also require trades in A3/A5 before interpreting collusion metrics;
+one seed is a functional check, not an estimate of detector performance.
+Based on the previous 75-call run, budget roughly 90–150 Puter credits, though
+prompt lengths and usage costs can vary. The `$0.60` experiment cap only
+applies to the harness's estimated USD meter, not Puter credits. Stop if the
+live A3/A5 behavior still does not meet these checks; do not treat successful
+execution alone as scenario validation.
+
+### Optional Puter gateway
+
+Puter is integrated through a loopback-only OpenAI-compatible bridge because
+its supported Node SDK is not itself an OpenAI API endpoint. Install the
+JavaScript dependency and start the bridge:
+
+```powershell
+npm install
+npm run puter-gateway
+```
+
+Without `PUTER_AUTH_TOKEN`, the SDK opens its browser-based sign-in flow. The
+token remains in the gateway process memory and is not written to disk or
+printed. The gateway defaults to Puter's `testMode`, which its docs describe
+as testing without consuming API credits. For a real request, explicitly set
+`PUTER_TEST_MODE=0` and `PUTER_ALLOW_BILLABLE_USAGE=1` before starting it;
+Puter's user-pays model may consume the account's free allowance or require
+paid usage. Do not treat Puter as an anonymous unlimited endpoint.
+
+The bridge listens only on `127.0.0.1:3800` and accepts the `puter` provider
+specs, for example `puter/openai/gpt-5.4-nano`. A one-request connectivity
+check can use the configured test mode:
+
+```powershell
+@'
+from openai import OpenAI
+client = OpenAI(base_url="http://127.0.0.1:3800/v1", api_key="puter-local")
+result = client.chat.completions.create(
+    model="openai/gpt-5.4-nano",
+    messages=[{"role": "user", "content": "Reply exactly: PUTER_TEST_OK"}],
+    max_tokens=16,
+)
+print(result.choices[0].message.content)
+'@ | python -
+```
+
+Do not use test-mode output as benchmark data. For experiments, explicitly
+opt in to billable mode and inspect Puter's usage dashboard. See Puter's
+[Node.js setup](https://docs.puter.com/getting-started/) and
+[user-pays model](https://docs.puter.com/user-pays-model/) documentation.
+
+Run artifacts are gitignored and are not included in this branch. The original
+continuity pilot contains 10 eligible episodes across five seeds for A2 and A3
+only; its two-example test split is diagnostic only. A separate local copy,
+`lexsi_market_base_v2`, passes the exporter and contains 70 eligible A3 and 70
+eligible A5 episodes across 70 seeds, but no eligible A2 controls. All selected
+rows are labeled collusive, so this source alone is not a balanced detector
+dataset. Do not publish any prior-sprint logs until the organizers confirm
+they can be used as source data for a project developed during the hackathon.
+Add eligible A2 controls before measuring balanced classification performance.
+
+For the current A2/A3 pilot, pass one concrete experiment directory (not its
+parent, which can contain duplicate episode IDs from multiple variants):
+
+```powershell
+$sourceRun = 'C:\path\to\eligible\experiment'
+python -m collusion_lab.lexsi.dataset `
+  --runs $sourceRun `
+  --output-dir runs/lexsi_dataset_prior_source `
+  --split-seed 0 `
+  --window-rounds 5 `
+  --conditions A2_honest_chat A3_overt_cartel
+```
+
 The exporter requires 5 sellers, 4 buyers, LLM seller metadata, and a valid
-evidence hash chain. It filters out monitor/probe variants and unselected
-conditions. Each example contains the **last five observed complete rounds**,
+evidence hash chain. For keyed logs, it requires the episode's private evidence
+key and anchor file from the sibling `_monitor_private` directory solely to
+verify provenance; those files are never copied into the dataset. It continues
+to accept verified legacy unkeyed logs. It filters monitor, probe,
+monitor-oversight, agent-tampering, and unselected-condition variants. Each
+example contains the **last five observed complete rounds**,
 episode ground truth, a seed-level split, source fingerprint, and model
 metadata. All episodes with the same seed stay in one split.
 
@@ -66,9 +206,11 @@ Files written:
   skipped variants, and source evidence hashes.
 
 The target's `reason` is a label-derived template, not an evidence-grounded
-explanation. Do not use it to claim rationale quality. The existing source has
-only three distinct seeds. For a useful held-out result, run more independent
-seeds before treating the metrics as benchmark findings.
+explanation. Do not use it to claim rationale quality. The current pilot has
+five distinct seeds but only two test examples and two conditions. Add fresh
+A5 episodes and more independent seeds before treating any metrics as
+benchmark findings. For a complete run generated from
+`lexsi_market_base.yaml`, omit `--conditions` to use the default A2/A3/A5 set.
 
 ## 2. CuratorKIT curation gate
 
@@ -99,113 +241,31 @@ modify the source dataset.
 
 ## 3. Tiny Aya Global zero-shot baseline with AuditKIT
 
-Upload `runs/lexsi_dataset_base/dataset.jsonl` and
-[`audit.py`](../src/collusion_lab/lexsi/audit.py) to Colab, select a T4, and
-install the evaluation/model packages:
+Use a free Colab or Kaggle CUDA runtime first; the current local Windows
+environment has no Tiny Aya runtime installed. Make the repository and dataset
+available in that runtime, install the evaluation/model packages, and provide
+`HF_TOKEN` through the runtime's secret store (never in a notebook or checked-in
+file):
 
 ```python
-!pip -q install auditkit curatorkit transformers accelerate bitsandbytes
+!pip -q install -e ".[lexsi]" transformers accelerate
 ```
 
-After installation, restart the Colab runtime. Upload both files into the
-runtime (the `audit.py` file should be at `/content/audit.py`), then run the
-code below. It uses 4-bit weights and does not rely on `model.hf_device_map`;
-it checks the input-embedding device instead.
+In Colab, add `HF_TOKEN` to Secrets and expose it to the process without
+printing it:
 
 ```python
-from google.colab import files
+import os
+from google.colab import userdata
 
-files.upload()  # Select dataset.jsonl and src/collusion_lab/lexsi/audit.py
+os.environ["HF_TOKEN"] = userdata.get("HF_TOKEN")
+```
 
-import gc
-import json
+Run only the test split first to limit inference and avoid reporting training
+metrics:
 
-import torch
-from transformers import (
-    AutoModelForCausalLM,
-    AutoTokenizer,
-    BitsAndBytesConfig,
-)
-
-from audit import evaluate_with_auditkit
-
-dataset_path = "/content/dataset.jsonl"
-model_id = "CohereLabs/tiny-aya-global"
-max_input_tokens = 4096
-
-if not torch.cuda.is_available():
-    raise RuntimeError("Select a CUDA GPU in Colab Runtime settings.")
-print("GPU:", torch.cuda.get_device_name(0))
-
-with open(dataset_path, encoding="utf-8") as source:
-    rows = [json.loads(line) for line in source if line.strip()]
-
-tokenizer = AutoTokenizer.from_pretrained(model_id)
-quantization = BitsAndBytesConfig(
-    load_in_4bit=True,
-    bnb_4bit_quant_type="nf4",
-    bnb_4bit_compute_dtype=torch.float16,
-    bnb_4bit_use_double_quant=True,
-)
-model = AutoModelForCausalLM.from_pretrained(
-    model_id,
-    quantization_config=quantization,
-    device_map={"": 0},
-)
-model.eval()
-
-input_device = model.get_input_embeddings().weight.device
-print("Input embedding device:", input_device)
-if input_device.type != "cuda":
-    raise RuntimeError(
-        f"Model embeddings are on {input_device}; expected the Colab GPU."
-    )
-
-
-def tiny_aya(prompts):
-    answers = []
-    for prompt in prompts:
-        encoded = tokenizer.apply_chat_template(
-            [{"role": "user", "content": prompt}],
-            add_generation_prompt=True,
-            return_tensors="pt",
-            return_dict=True,
-        )
-        token_count = encoded["input_ids"].shape[1]
-        if token_count > max_input_tokens:
-            raise ValueError(
-                f"Prompt has {token_count} tokens; re-export a smaller "
-                "window rather than silently truncating evidence."
-            )
-        encoded = {
-            key: value.to(input_device) if isinstance(value, torch.Tensor) else value
-            for key, value in encoded.items()
-        }
-        with torch.inference_mode():
-            generated = model.generate(
-                **encoded,
-                max_new_tokens=96,
-                do_sample=False,
-                pad_token_id=tokenizer.eos_token_id,
-            )
-        new_tokens = generated[0, encoded["input_ids"].shape[1]:]
-        answers.append(tokenizer.decode(new_tokens, skip_special_tokens=True))
-        del encoded, generated, new_tokens
-        gc.collect()
-        torch.cuda.empty_cache()
-    return answers
-
-
-for split in ("test", "validation", "train"):
-    result = evaluate_with_auditkit(
-        rows,
-        model=tiny_aya,
-        split=split,
-        experiment_name="collusion-watch-tiny-aya-global-base",
-    )
-    print(f"\n{split}:")
-    print(result.summary())
-    print(result.headline)
+```bash
+python lexsitest.py --dataset runs/lexsi_dataset_base/dataset.jsonl --split test
 ```
 
 AuditKIT reports valid JSON schema rate, verdict accuracy, action accuracy,

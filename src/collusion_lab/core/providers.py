@@ -32,6 +32,7 @@ class Resolved:
     rpm: float
     tools: str                # native | json | auto
     family: str
+    rate_limit_cooldown_s: float = 60.0
 
     @property
     def has_key(self) -> bool:
@@ -40,12 +41,12 @@ class Resolved:
     @property
     def needs_key(self) -> bool:
         """Only OpenAI-compatible endpoints are pre-checked for a key. Local providers (hf/ transformers,
-        vllm/, Ollama, the FCM router, LiteLLM) need none, and other Inspect-native providers check their
-        own credentials (a missing key then shows up as a real, reported error)."""
+        vllm/, Ollama, the FCM router, Puter loopback bridge, and LiteLLM need none; other Inspect-native
+        providers check their own credentials (a missing key then shows up as a real, reported error)."""
         return self.kind != "native" and self.provider not in KEYLESS
 
 
-KEYLESS = ("ollama", "fcm", "litellm", "mockllm", "hf", "vllm", "sglang", "llama-cpp-python", "transformer_lens")
+KEYLESS = ("ollama", "fcm", "litellm", "puter", "mockllm", "hf", "vllm", "sglang", "llama-cpp-python", "transformer_lens")
 # in-process inference: latency is local compute, so no HTTP-style timeouts / retries apply
 LOCAL_COMPUTE = ("hf", "vllm", "sglang", "llama-cpp-python", "transformer_lens")
 
@@ -81,7 +82,10 @@ def resolve(spec: str) -> Resolved:
     reg = registry()["providers"]
     if provider not in reg:
         # any other Inspect-native provider string (vllm/, bedrock/, azureai/ ...) passes through
-        return Resolved(spec, provider, model_id, "native", spec, None, None, 60, "native", family(model_id))
+        return Resolved(
+            spec, provider, model_id, "native", spec, None, None, 60, "native",
+            family(model_id), float(registry().get("rate_limit_cooldown_s", 60)),
+        )
     p = reg[provider]
     kind = p.get("kind", "openai_compat")
     base_url = _expand(os.environ.get(p.get("base_url_env", ""), "") or p.get("base_url"))
@@ -94,7 +98,9 @@ def resolve(spec: str) -> Resolved:
         inspect_name = f"openai-api/{provider}/{model_id}"
     return Resolved(spec, provider, model_id, kind, inspect_name, base_url, api_key,
                     float(p.get("rpm", 60)), p.get("tools", "native"),
-                    "router:dynamic" if kind == "router" and model_id.startswith("fcm") else family(model_id))
+                    "router:dynamic" if kind == "router" and model_id.startswith("fcm") else family(model_id),
+                    float(p.get("rate_limit_cooldown_s",
+                                registry().get("rate_limit_cooldown_s", 60))))
 
 
 def get_inspect_model(r: Resolved):

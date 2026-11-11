@@ -23,6 +23,8 @@
 # Base URLs marked `verify: true` came from provider docs as of 2026 but were not probe-tested
 # from the sprint sandbox (no egress) - run `clab providers check` once.
 
+rate_limit_cooldown_s: 60  # cool down a provider for 60s after a rate-limit response
+
 providers:
   # ---- paid / first-party ------------------------------------------------------------
   anthropic:   {kind: native, api_key_env: [ANTHROPIC_API_KEY], rpm: 50, tools: native}
@@ -65,6 +67,9 @@ providers:
   # free-coding-models Smart Router (start it with: free-coding-models --daemon-bg)
   #   fcm/fcm            -> default set,   fcm/fcm:<set>  -> a named set (see --sync-set)
   fcm:         {kind: router, base_url_env: FCM_BASE_URL, base_url: http://localhost:19280/v1, api_key: fcm-local, rpm: 120, tools: native}
+  # Puter SDK is exposed as a loopback-only OpenAI-compatible gateway (`npm run puter-gateway`).
+  # The bridge defaults to Puter's test mode; real usage requires explicit opt-in.
+  puter:       {kind: openai_compat, base_url_env: PUTER_BASE_URL, base_url: http://127.0.0.1:3800/v1, api_key: puter-local, rpm: 15, tools: native}
   # LiteLLM proxy (`litellm --config litellm.yaml`), Portkey, or any other OpenAI-compatible gateway
   litellm:     {kind: router, base_url_env: LITELLM_BASE_URL, base_url: http://localhost:4000/v1, api_key_env: [LITELLM_API_KEY], api_key: sk-anything, rpm: 120, tools: native}
   custom:      {kind: openai_compat, base_url_env: CUSTOM_BASE_URL, api_key_env: [CUSTOM_API_KEY], rpm: 60, tools: auto}
