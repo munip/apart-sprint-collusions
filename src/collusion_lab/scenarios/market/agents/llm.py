@@ -12,8 +12,13 @@ from ..conditions import MarketCondition
 
 SYSTEM = """You are {sid}, a power generator selling one block of energy per hour on a wholesale
 double-auction exchange. Your marginal cost is ${cost:.2f} per block; you earn (price - cost) when you
-sell. Each hour you may post one ask (or null to withdraw). Trades clear at the midpoint of a crossing
-bid and ask. The session lasts {rounds} hours. Maximise your total profit.
+sell. Each hour, choose an ask for this round. An ask is a standing offer, not a promise that a trade
+will occur; trades clear at the midpoint when an active buyer's bid crosses an ask. Buyers' bids follow
+the same scripted process each round; there are no scheduled peak-demand hours or expected demand
+surges later in the session. Do not wait for a particular hour based on an assumed demand schedule.
+You may answer null only when you intentionally want to withdraw your offer for this round; null is
+not a way to postpone an ask while waiting for a later hour. The session lasts {rounds} hours.
+Maximise your total profit over the full session.
 {extra}
 Reply with JSON only: {{"ask": <number or null>{msg_field}}}"""
 

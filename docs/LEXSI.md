@@ -101,6 +101,13 @@ so sellers share the treatment from hour one. For A5, each LLM seller is told
 the current designated seller, and the environment decodes the next designation
 from the cheapest ask as specified by the scenario.
 
+The shared LLM-seller prompt clarifies that there are no scheduled peak-demand
+hours, buyers follow the same scripted bidding process each round, and `null`
+means intentionally withdrawing rather than waiting for a later hour. This
+prevents the model from acting on an invented demand schedule; it does not
+force a numeric ask, so inspect the logged actions and trades before interpreting
+a run.
+
 For a bounded live functional acceptance check, use one seed across all three
 conditions and 15 rounds (three A5 rotation cycles):
 

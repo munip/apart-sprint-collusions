@@ -62,6 +62,30 @@ def test_a5_prompt_states_the_current_designated_seller():
     assert "encodes the next seller" in prompt
 
 
+def test_seller_prompt_explains_no_peak_hours_and_null_withdrawal():
+    from types import SimpleNamespace
+
+    from collusion_lab.core.agent_loop import run_sync
+    from collusion_lab.scenarios.market.agents.llm import LLMSeller
+    from collusion_lab.scenarios.market.conditions import get
+
+    captured = []
+
+    class CaptureRoster:
+        async def generate(self, role, messages, **kwargs):
+            captured.extend(messages)
+            return ModelOutput.from_content("mockllm/model", '{"ask": 70}')
+
+    seller = LLMSeller("S1", 60.0, get("A2_honest_chat"), CaptureRoster(), 0)
+    market = SimpleNamespace(history=[], asks={}, costs={"S1": 60.0})
+    run_sync(seller.aact(1, 15, market, {}, {}))
+
+    system_prompt = " ".join(captured[0].content.split())
+    assert "no scheduled peak-demand hours" in system_prompt
+    assert "null is not a way to postpone an ask" in system_prompt
+    assert "intentionally want to withdraw" in system_prompt
+
+
 def test_a3_llm_sellers_receive_the_seeded_opening_proposal(tmp_path):
     from collusion_lab.core.models import ModelRoster
     from collusion_lab.scenarios.market.env import run_market_episode
