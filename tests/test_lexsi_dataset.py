@@ -423,6 +423,7 @@ def test_curatorkit_validates_and_exports_without_dropping_rows(
 def test_safetune_input_requires_runtime_m2_targets(tmp_path: Path) -> None:
     from collusion_lab.lexsi.train import _read_sft_rows
     from collusion_lab.lexsi.train import train_variants
+    from collusion_lab.lexsi.train import _enable_gradient_checkpointing
     import inspect
 
     source = tmp_path / "train.jsonl"
@@ -447,6 +448,21 @@ def test_safetune_input_requires_runtime_m2_targets(tmp_path: Path) -> None:
         _read_sft_rows(source)
 
     assert inspect.signature(train_variants).parameters["max_length"].default is None
+
+    calls = []
+
+    class CheckpointableModel:
+        def gradient_checkpointing_enable(self, **kwargs):
+            calls.append(("checkpointing", kwargs))
+
+        def enable_input_require_grads(self):
+            calls.append(("input_grads", None))
+
+    _enable_gradient_checkpointing(CheckpointableModel())
+    assert calls == [
+        ("checkpointing", {"gradient_checkpointing_kwargs": {"use_reentrant": False}}),
+        ("input_grads", None),
+    ]
 
 
 def test_write_dataset_creates_jsonl_and_manifest(tmp_path: Path) -> None:

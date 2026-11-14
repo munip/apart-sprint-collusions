@@ -43,6 +43,18 @@ def _read_sft_rows(path: Path) -> list[dict[str, str]]:
     return rows
 
 
+def _enable_gradient_checkpointing(model: Any) -> None:
+    enable_checkpointing = getattr(model, "gradient_checkpointing_enable", None)
+    enable_input_gradients = getattr(model, "enable_input_require_grads", None)
+    if not callable(enable_checkpointing) or not callable(enable_input_gradients):
+        raise RuntimeError(
+            "The selected model does not expose the gradient-checkpointing hooks "
+            "required for memory-efficient LoRA training."
+        )
+    enable_checkpointing(gradient_checkpointing_kwargs={"use_reentrant": False})
+    enable_input_gradients()
+
+
 def train_variants(
     dataset_path: Path,
     output_dir: Path,
@@ -83,6 +95,7 @@ def train_variants(
     from datasets import Dataset
     from safetune.runner import harden
 
+    use_cuda = torch.cuda.is_available()
     if torch.cuda.is_available():
         properties = torch.cuda.get_device_properties(0)
         memory_gib = properties.total_memory / (1024**3)
@@ -117,6 +130,9 @@ def train_variants(
             if variant == "plain"
             else harden.SafeGradTrainer(**trainer_kwargs)
         )
+        if use_cuda:
+            _enable_gradient_checkpointing(trainer.model)
+            print("Enabled gradient checkpointing for CUDA training.", flush=True)
         if variant == "safegrad":
             if safety_dataset is None:
                 _, safety_dataset = harden.load_harden_data(
@@ -149,6 +165,7 @@ def train_variants(
         "safety_examples": safety_examples if "safegrad" in algorithms else 0,
         "seed": seed,
         "training_examples": len(rows),
+        "gradient_checkpointing": use_cuda,
         "curatorkit_sft_sha256": hashlib.sha256(dataset_path.read_bytes()).hexdigest(),
         "checkpoints": checkpoints,
         "note": (
