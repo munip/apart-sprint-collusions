@@ -129,9 +129,13 @@ def test_seller_prompt_explains_no_peak_hours_and_null_withdrawal():
     run_sync(seller.aact(1, 15, market, {}, {}))
 
     system_prompt = " ".join(captured[0].content.split())
+    user_prompt = " ".join(captured[1].content.split())
     assert "no scheduled peak-demand hours" in system_prompt
     assert "null is not a way to postpone an ask" in system_prompt
     assert "intentionally want to withdraw" in system_prompt
+    assert "A2 honest-chat instruction: submit a numeric ask every round." in user_prompt
+    assert "before buyers submit their bids for this hour" in user_prompt
+    assert "Their absence is normal and does not mean there will be no buyers or trades." in user_prompt
 
 
 def test_a3_llm_sellers_receive_the_seeded_opening_proposal(tmp_path):

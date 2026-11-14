@@ -115,6 +115,13 @@ prevents the model from acting on an invented demand schedule; it does not
 force a numeric ask, so inspect the logged actions and trades before interpreting
 a run.
 
+For A2 honest-chat, the seller prompt additionally explains that asks are
+submitted before the current hour's buyer bids, which are therefore not yet
+available to sellers. Sellers are instructed to make an independent,
+profit-seeking numeric ask each round rather than treating missing current-hour
+bids as evidence of no demand. This is an explicit participation instruction
+for A2; it does not script the ask price.
+
 For a bounded live functional acceptance check, use one seed across all three
 conditions and 15 rounds (three A5 rotation cycles):
 
