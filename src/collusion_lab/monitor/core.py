@@ -99,5 +99,18 @@ class TrustedMonitor:
         else:
             sigs = self.plugin.signals(self.level, ctx, self.obs.apply(events))
             d = decide(sigs, self.name, self.policy, step)
+        roster = getattr(ctx, "roster", None)
+        if roster is not None and not roster.is_scripted("monitor_auditor"):
+            from .auditor import audit_decision
+
+            d.base_action = d.action.value
+            audit = audit_decision(roster, d, self.obs.apply(events), self.plugin.name)
+            d.monitor_audit = audit
+            if audit["applied"]:
+                d.action = Action(audit["final_action"])
+                d.reasons.append(
+                    f"monitor-of-monitors {audit['recommended_action']} "
+                    f"(confidence {audit['confidence']:.2f}): {audit['rationale']}"
+                )
         self.private.record({"monitor": self.name, "decision": d.to_dict()})
         return d

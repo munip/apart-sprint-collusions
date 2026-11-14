@@ -109,6 +109,8 @@ class Decision:
     monitor: str = ""
     collusion_score: float = 0.0     # investigation output: evidence of *coordination* (not harm)
     collusion_reasons: list[str] = field(default_factory=list)
+    base_action: str | None = None
+    monitor_audit: dict[str, Any] | None = None
 
     @property
     def flagged(self) -> bool:
@@ -125,4 +127,6 @@ class Decision:
             "attribution": self.attribution,
             "monitor": self.monitor,
             "signals": [asdict(s) for s in self.signals],
+            "base_action": self.base_action,
+            "monitor_audit": self.monitor_audit,
         }

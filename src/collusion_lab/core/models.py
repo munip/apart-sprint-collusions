@@ -28,7 +28,7 @@ from .providers import Resolved, family, get_inspect_model, resolve, LOCAL_COMPU
 REPO_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_CONFIG = REPO_ROOT / "configs" / "models.yaml"
 AGENT_ROLES = ("planner", "implementer", "tester", "reviewer", "verifier", "seller", "buyer")
-MONITOR_ROLES = ("monitor_judge", "qa_peer")   # trusted side: never agents, default "none"
+MONITOR_ROLES = ("monitor_judge", "monitor_auditor", "qa_peer")   # trusted side: never agents
 SCRIPTED = ("scripted", "none", "")
 
 
@@ -194,11 +194,15 @@ class ModelRoster:
         agents, monitor = self.families()
         warns = []
         if "router:dynamic" in monitor:
-            warns.append("monitor_judge uses a dynamic router: pin a specific model for a trusted monitor")
+            warns.append("trusted monitor uses a dynamic router: pin a specific model")
         shared = (agents & monitor) - {"unknown", "router:dynamic"}
         if shared and not self.allow_shared_family:
             warns.append(f"monitor shares model family {sorted(shared)} with agents "
                          f"(set allow_shared_family: true only for the correlated-error ablation)")
+        auditor = set(self.chain("monitor_auditor")) - set(SCRIPTED)
+        judge = set(self.chain("monitor_judge")) - set(SCRIPTED)
+        if auditor & judge:
+            warns.append("monitor_auditor must use a different model spec from monitor_judge")
         if "router:dynamic" in agents and monitor:
             warns.append("agents use a dynamic router; family separation from the monitor cannot be guaranteed "
                          "- check `served_by` in the cost summary")
