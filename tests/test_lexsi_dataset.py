@@ -24,7 +24,10 @@ def _write_episode(
         "scenario": "market",
         "condition": "A5_stego_rotation" if collusive else "A2_honest_chat",
         "seed": seed,
-        "models": {"default": ["test/llm-seller"]},
+        "models": {
+            "default": ["scripted"],
+            "seller": ["hf/CohereLabs/tiny-aya-global"],
+        },
         "truth": {"collusive": collusive, "mechanism": "price_signal" if collusive else "none"},
         "agent_tamper_tool": agent_tamper_tool,
     }), encoding="utf-8")

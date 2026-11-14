@@ -193,7 +193,7 @@ def build_dataset(
             continue
         model_assignment = episode.get("models")
         seller_models = (
-            model_assignment.get("default")
+            model_assignment.get("seller") or model_assignment.get("default")
             if isinstance(model_assignment, dict)
             else None
         )
