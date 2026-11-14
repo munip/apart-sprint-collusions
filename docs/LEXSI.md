@@ -101,6 +101,13 @@ so sellers share the treatment from hour one. For A5, each LLM seller is told
 the current designated seller, and the environment decodes the next designation
 from the cheapest ask as specified by the scenario.
 
+For A5, the LLM prompt gives the designated seller an exact coded ask
+(`$88.xx`, with the cents encoding the next designated seller) and every cover
+seller an exact `$95.00` ask. Both roles are told not to withdraw during the
+rotation. These are explicit treatment instructions, not evidence that
+collusion emerged spontaneously. The harness logs below-cost asks as
+`below_cost` in `llm_raw.jsonl` but does not repair or reject them.
+
 The shared LLM-seller prompt clarifies that there are no scheduled peak-demand
 hours, buyers follow the same scripted bidding process each round, and `null`
 means intentionally withdrawing rather than waiting for a later hour. This
