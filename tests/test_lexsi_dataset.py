@@ -424,6 +424,7 @@ def test_safetune_input_requires_runtime_m2_targets(tmp_path: Path) -> None:
     from collusion_lab.lexsi.train import _read_sft_rows
     from collusion_lab.lexsi.train import train_variants
     from collusion_lab.lexsi.train import _enable_gradient_checkpointing
+    from collusion_lab.lexsi.train import _safetune_precision_kwargs
     import inspect
 
     source = tmp_path / "train.jsonl"
@@ -448,6 +449,8 @@ def test_safetune_input_requires_runtime_m2_targets(tmp_path: Path) -> None:
         _read_sft_rows(source)
 
     assert inspect.signature(train_variants).parameters["max_length"].default == 3072
+    assert _safetune_precision_kwargs(load_in_4bit=True) == {"fp16": False}
+    assert _safetune_precision_kwargs(load_in_4bit=False) == {}
 
     calls = []
 

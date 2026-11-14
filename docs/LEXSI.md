@@ -396,8 +396,10 @@ python -m collusion_lab.lexsi.train \
 The merged checkpoint is saved at
 `/content/drive/MyDrive/lexsi/runs/aya_m2_finetunes/plain`. On CUDA, the
 trainer loads the base in 4-bit NF4 and trains LoRA adapters (QLoRA), with
-gradient checkpointing enabled. This avoids SafeTune's full-precision
-trainable-weight conversion exhausting the 15-GB T4. The default sequence
+gradient checkpointing enabled. SafeTune's mixed-precision flag is disabled
+for this QLoRA path: its FP16 master-weight setup can reload a full-precision
+model after LoRA setup and exhaust T4 memory. BitsAndBytes still uses FP16
+compute for 4-bit layers. The default sequence
 length is 3072, enough for the current dataset's reported 3031-token minimum;
 if SafeTune reports rows with no supervised tokens, raise `--max-length` above
 the reported requirement. Longer sequences need more memory.

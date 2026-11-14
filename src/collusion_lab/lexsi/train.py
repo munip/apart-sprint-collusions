@@ -102,6 +102,11 @@ def _load_training_model(model_id: str, hf_token: str, *, load_in_4bit: bool) ->
     return model, tokenizer
 
 
+def _safetune_precision_kwargs(*, load_in_4bit: bool) -> dict[str, bool]:
+    # SafeTune's fp16 master-weight helper can reload the full model after LoRA setup.
+    return {"fp16": False} if load_in_4bit else {}
+
+
 def train_variants(
     dataset_path: Path,
     output_dir: Path,
@@ -175,6 +180,7 @@ def train_variants(
             "lr": learning_rate,
             "logging_steps": 1,
         }
+        trainer_kwargs.update(_safetune_precision_kwargs(load_in_4bit=load_in_4bit))
         training_model, tokenizer = _load_training_model(
             model_id,
             os.environ["HF_TOKEN"],
