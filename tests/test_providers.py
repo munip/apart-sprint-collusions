@@ -42,6 +42,13 @@ def test_profiles_keep_monitor_family_separate():
                  "local", "cloud", "mixed"):
         r = ModelRoster(prof)
         assert not any("shares model family" in w for w in r.check_separation()), prof
+    mom = ModelRoster("puter_live_mom")
+    assert mom.chain("monitor_auditor") == ["puter/openai/gpt-5.4-mini"]
+    assert mom.chain("monitor_judge") == ["puter/anthropic/claude-sonnet-5-5"]
+    assert not any("different model spec" in w for w in mom.check_separation())
+    assert any("different model spec" in w for w in ModelRoster(
+        "scripted", {"monitor_judge": "mockllm/same", "monitor_auditor": "mockllm/same"}
+    ).check_separation())
     assert any("shares model family" in w for w in ModelRoster("same_family", {}).check_separation()) is False  # allowed ablation
     bad = ModelRoster("free", {"monitor_judge": "groq/llama-3.3-70b-versatile"})
     assert any("shares model family" in w for w in bad.check_separation())

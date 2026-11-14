@@ -19,7 +19,7 @@ test("Puter request mapping preserves tools and uses test mode", () => {
     testMode: true,
     options: {
       model: "openai/gpt-5.4-nano",
-      fallback: true,
+      fallback: false,
       normalize: true,
       stream: false,
       max_tokens: 32,

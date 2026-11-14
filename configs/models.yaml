@@ -82,9 +82,21 @@ profiles:
     monitor_judge: none
     generate: {max_retries: 0, timeout: 120, attempt_timeout: 90}
 
+  puter_claude_judge:  # replay stored trajectories with a cross-family Claude judge through Puter
+    default: scripted
+    monitor_judge: puter/anthropic/claude-sonnet-5-5
+    generate: {max_retries: 0, timeout: 180, attempt_timeout: 150, max_tokens: 800}
+
   tiny_aya_replay:  # no market agents; Aya Fire is the trusted M2/M4 judge
     default: scripted
     monitor_judge: hf/CohereLabs/tiny-aya-fire
+    generate: {max_retries: 0, timeout: 180, attempt_timeout: 150, max_tokens: 800}
+
+  puter_live_mom:  # M4 judge + GPT-5.4 Mini meta-monitor; same-family auditor is deliberate
+    allow_shared_family: true
+    default: puter/openai/gpt-5.4-nano
+    monitor_judge: puter/anthropic/claude-sonnet-5-5
+    monitor_auditor: puter/openai/gpt-5.4-mini
     generate: {max_retries: 0, timeout: 180, attempt_timeout: 150, max_tokens: 800}
 
   free_weak_monitor:   # AI-control framing: strong untrusted agents, small local *trusted* monitor

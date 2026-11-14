@@ -8,7 +8,7 @@ const MAX_BODY_BYTES = 1_000_000;
 export function toPuterOptions(body, testMode) {
   const options = {
     model: body.model,
-    fallback: true,
+    fallback: false,
     normalize: true,
     stream: false,
   };
