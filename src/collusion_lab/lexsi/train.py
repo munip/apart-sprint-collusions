@@ -55,6 +55,53 @@ def _enable_gradient_checkpointing(model: Any) -> None:
     enable_input_gradients()
 
 
+def _load_training_model(model_id: str, hf_token: str, *, load_in_4bit: bool) -> tuple[Any, Any]:
+    import torch
+    from transformers import AutoModelForCausalLM, AutoTokenizer
+
+    tokenizer = AutoTokenizer.from_pretrained(model_id, token=hf_token)
+    if not load_in_4bit:
+        model = AutoModelForCausalLM.from_pretrained(
+            model_id,
+            token=hf_token,
+            torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
+            device_map="auto" if torch.cuda.is_available() else None,
+        )
+        return model, tokenizer
+
+    if not torch.cuda.is_available():
+        raise RuntimeError("4-bit QLoRA requires a CUDA GPU.")
+
+    try:
+        from peft import prepare_model_for_kbit_training
+        from transformers import BitsAndBytesConfig
+    except ImportError as exc:
+        raise RuntimeError(
+            "4-bit QLoRA requires PEFT and bitsandbytes; install the lexsi training extras."
+        ) from exc
+
+    quantization_config = BitsAndBytesConfig(
+        load_in_4bit=True,
+        bnb_4bit_quant_type="nf4",
+        bnb_4bit_compute_dtype=torch.float16,
+        bnb_4bit_use_double_quant=True,
+    )
+    model = AutoModelForCausalLM.from_pretrained(
+        model_id,
+        token=hf_token,
+        quantization_config=quantization_config,
+        torch_dtype=torch.float16,
+        device_map={"": 0},
+    )
+    if not getattr(model, "is_loaded_in_4bit", False):
+        raise RuntimeError("Transformers did not load the base model in 4-bit mode.")
+    model = prepare_model_for_kbit_training(
+        model,
+        use_gradient_checkpointing=False,
+    )
+    return model, tokenizer
+
+
 def train_variants(
     dataset_path: Path,
     output_dir: Path,
@@ -64,7 +111,7 @@ def train_variants(
     epochs: int = 1,
     batch_size: int = 1,
     learning_rate: float = 1e-4,
-    max_length: int | None = None,
+    max_length: int | None = 3072,
     safety_examples: int = 32,
     seed: int = 42,
 ) -> dict[str, Any]:
@@ -96,10 +143,13 @@ def train_variants(
     from safetune.runner import harden
 
     use_cuda = torch.cuda.is_available()
+    load_in_4bit = use_cuda
     if torch.cuda.is_available():
         properties = torch.cuda.get_device_properties(0)
         memory_gib = properties.total_memory / (1024**3)
         print(f"GPU: {properties.name} ({memory_gib:.1f} GiB)")
+        if load_in_4bit:
+            print("Loading the base model in 4-bit NF4 for QLoRA training.", flush=True)
         if algorithm in {"safegrad", "both"} and memory_gib < 20:
             print(
                 "WARNING: SafeGrad holds a trainable model and a frozen reference model "
@@ -125,10 +175,19 @@ def train_variants(
             "lr": learning_rate,
             "logging_steps": 1,
         }
+        training_model, tokenizer = _load_training_model(
+            model_id,
+            os.environ["HF_TOKEN"],
+            load_in_4bit=load_in_4bit,
+        )
         trainer = (
-            harden.PlainSFTTrainer(**trainer_kwargs)
+            harden.PlainSFTTrainer(
+                model=training_model, tokenizer=tokenizer, **trainer_kwargs
+            )
             if variant == "plain"
-            else harden.SafeGradTrainer(**trainer_kwargs)
+            else harden.SafeGradTrainer(
+                model=training_model, tokenizer=tokenizer, **trainer_kwargs
+            )
         )
         if use_cuda:
             _enable_gradient_checkpointing(trainer.model)
@@ -195,8 +254,8 @@ def main() -> None:
     parser.add_argument(
         "--max-length",
         type=int,
-        default=None,
-        help="Training sequence length; default auto-sizes to the longest prompt/answer.",
+        default=3072,
+        help="Training sequence length (default: 3072; use a larger value if SafeTune reports truncation).",
     )
     parser.add_argument("--safety-examples", type=int, default=32)
     parser.add_argument("--seed", type=int, default=42)

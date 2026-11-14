@@ -394,19 +394,20 @@ python -m collusion_lab.lexsi.train \
 ```
 
 The merged checkpoint is saved at
-`/content/drive/MyDrive/lexsi/runs/aya_m2_finetunes/plain`. SafeGrad is a
-separate experiment: it keeps a frozen reference model alongside the trainable
-model and is likely to exceed a 15-GB Colab GPU. Do not describe Plain SFT as
-SafeGrad hardening. By default, SafeTune sizes the sequence length to fit the
-longest templated training example; do not set a shorter `--max-length`, which
-can mask every target token and make training fail or do no useful work. This
-CUDA training enables gradient checkpointing to reduce activation memory. If
-the Colab runtime reports CUDA out of memory, restart it first to release
-allocations from the failed attempt, pull the latest code, and retry Plain SFT
-with a new output directory. If it still runs out of memory, re-export with a
-shorter observed-round window (for example `--window-rounds 5`), then curate
-that dataset's train split again. This shortens the training examples without
-silently masking target tokens.
+`/content/drive/MyDrive/lexsi/runs/aya_m2_finetunes/plain`. On CUDA, the
+trainer loads the base in 4-bit NF4 and trains LoRA adapters (QLoRA), with
+gradient checkpointing enabled. This avoids SafeTune's full-precision
+trainable-weight conversion exhausting the 15-GB T4. The default sequence
+length is 3072, enough for the current dataset's reported 3031-token minimum;
+if SafeTune reports rows with no supervised tokens, raise `--max-length` above
+the reported requirement. Longer sequences need more memory.
+
+If CUDA still runs out of memory, restart the Colab runtime to release
+allocations from the failed attempt. Then shorten the dataset context (for
+example `--window-rounds 5`), re-export and re-curate the training split, and
+retry with a new output directory. SafeGrad is a separate experiment that
+keeps a frozen reference model alongside the trainable model and is likely to
+exceed a 15-GB Colab GPU. Do not describe Plain SFT as SafeGrad hardening.
 
 To compare Aya Fire against the fine-tuned judge on the **same stored market
 trajectories**, first upload the checkpoint to a private Hugging Face model

@@ -447,7 +447,7 @@ def test_safetune_input_requires_runtime_m2_targets(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="runtime M2 format"):
         _read_sft_rows(source)
 
-    assert inspect.signature(train_variants).parameters["max_length"].default is None
+    assert inspect.signature(train_variants).parameters["max_length"].default == 3072
 
     calls = []
 
