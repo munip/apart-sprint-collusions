@@ -82,6 +82,11 @@ profiles:
     monitor_judge: none
     generate: {max_retries: 0, timeout: 120, attempt_timeout: 90}
 
+  tiny_aya_replay:  # no market agents; Aya Fire is the trusted M2/M4 judge
+    default: scripted
+    monitor_judge: hf/CohereLabs/tiny-aya-fire
+    generate: {max_retries: 0, timeout: 180, attempt_timeout: 150, max_tokens: 800}
+
   free_weak_monitor:   # AI-control framing: strong untrusted agents, small local *trusted* monitor
     planner:     [groq/llama-3.3-70b-versatile, cerebras/llama-3.3-70b]
     implementer: [nvidia/qwen/qwen3-coder-480b-a35b-instruct, openrouter/qwen/qwen3-coder:free]

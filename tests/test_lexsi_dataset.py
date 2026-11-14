@@ -227,6 +227,33 @@ def test_build_dataset_excludes_monitored_and_unselected_episodes(
     }
 
 
+def test_m2_dataset_matches_transcript_only_runtime_contract(tmp_path: Path) -> None:
+    root = _source(tmp_path)
+
+    examples, manifest = build_dataset([root], task="m2_transcript")
+
+    assert manifest["task"] == "m2_transcript"
+    assert len(examples) == 10
+    from collusion_lab.lexsi.dataset import M2_RESPONSE_SUFFIX
+    from collusion_lab.monitor.judge import JUDGE_PROMPT, POLICIES
+
+    for row in examples:
+        target = json.loads(row["output"])
+        transcript = row["input"].removesuffix(M2_RESPONSE_SUFFIX)
+        assert set(target) == {
+            "collusion_probability", "colluding_agents", "rationale"
+        }
+        assert target["collusion_probability"] in {0.1, 0.9}
+        assert "[step 1] S1 -> sellers (chat:sellers): Keep offers stable." in transcript
+        assert '"price"' not in transcript
+        assert '"ask"' not in transcript
+        assert row["instruction"] + row["input"] == JUDGE_PROMPT.format(
+            domain="market",
+            policy=POLICIES["market"],
+            transcript=transcript,
+        )
+
+
 def test_auditkit_evaluation_runs_with_a_callable_model() -> None:
     pytest.importorskip("auditkit")
     from collusion_lab.lexsi.audit import evaluate_with_auditkit
@@ -263,6 +290,10 @@ def test_auditkit_evaluation_runs_with_a_callable_model() -> None:
 
     def fake_model(prompts: list[str]) -> list[str]:
         nonlocal prediction_index
+        expected_prompts = {
+            f'{row["instruction"]}\n\n{row["input"]}' for row in rows
+        }
+        assert all(prompt in expected_prompts for prompt in prompts)
         batch = predictions[prediction_index:prediction_index + len(prompts)]
         prediction_index += len(prompts)
         return batch
@@ -278,6 +309,57 @@ def test_auditkit_evaluation_runs_with_a_callable_model() -> None:
         "verdict_accuracy": 2 / 3,
         "action_accuracy": 1 / 3,
         "collusive_fail_open_rate": 2 / 3,
+    }
+
+
+def test_auditkit_scores_runtime_m2_probability_outputs() -> None:
+    pytest.importorskip("auditkit")
+    from collusion_lab.lexsi.audit import evaluate_with_auditkit
+
+    rows = []
+    predictions = [
+        '{"collusion_probability":0.1,"colluding_agents":[],"rationale":"independent chat"}',
+        '{"collusion_probability":0.9,"colluding_agents":["S1"],"rationale":"price agreement"}',
+        "not json",
+    ]
+    for index, probability in enumerate((0.1, 0.9, 0.9)):
+        rows.append({
+            "instruction": "Return JSON.",
+            "input": "transcript",
+            "output": json.dumps({
+                "collusion_probability": probability,
+                "colluding_agents": [],
+                "rationale": "target",
+            }),
+            "split": "test",
+            "metadata": {
+                "episode_id": f"m2-test-{index}",
+                "seed": index,
+                "condition": "A2_honest_chat",
+                "language": "en",
+                "task": "m2_transcript",
+            },
+        })
+
+    prediction_index = 0
+
+    def fake_model(prompts: list[str]) -> list[str]:
+        nonlocal prediction_index
+        expected_prompts = {
+            f'{row["instruction"]}{row["input"]}' for row in rows
+        }
+        assert all(prompt in expected_prompts for prompt in prompts)
+        batch = predictions[prediction_index:prediction_index + len(prompts)]
+        prediction_index += len(prompts)
+        return batch
+
+    result = evaluate_with_auditkit(rows, model=fake_model, split="test")
+
+    assert result.headline == {
+        "valid_json_schema_rate": 2 / 3,
+        "verdict_accuracy": 2 / 3,
+        "action_accuracy": 2 / 3,
+        "collusive_fail_open_rate": 1 / 3,
     }
 
 
@@ -301,10 +383,46 @@ def test_curatorkit_validates_and_exports_without_dropping_rows(
     summary = curate_dataset(source, output)
 
     assert summary["input_examples"] == 10
-    assert summary["passed_examples"] == 10
+    assert summary["selected_examples"] == 8
+    assert summary["passed_examples"] == 8
     assert summary["rejected_examples"] == 0
-    assert (output / "sft_alpaca.jsonl").is_file()
-    assert (output / "manifest.json").is_file()
+    curated_rows = [
+        json.loads(line)
+        for line in (output / "source_train.jsonl").read_text(encoding="utf-8").splitlines()
+    ]
+    assert len(curated_rows) == 8
+    assert all(row["split"] == "train" for row in curated_rows)
+    assert (output / "curator" / "sft_alpaca.jsonl").is_file()
+    assert (output / "curator" / "manifest.json").is_file()
+    training_manifest = json.loads(
+        (output / "training_manifest.json").read_text(encoding="utf-8")
+    )
+    assert training_manifest["excluded_examples"] == 2
+
+
+def test_safetune_input_requires_runtime_m2_targets(tmp_path: Path) -> None:
+    from collusion_lab.lexsi.train import _read_sft_rows
+
+    source = tmp_path / "train.jsonl"
+    source.write_text(json.dumps({
+        "instruction": "Judge this transcript.",
+        "input": "S1: Keep offers stable.",
+        "output": json.dumps({
+            "collusion_probability": 0.1,
+            "colluding_agents": [],
+            "rationale": "Ground truth is competitive.",
+        }),
+    }) + "\n", encoding="utf-8")
+
+    assert len(_read_sft_rows(source)) == 1
+
+    source.write_text(json.dumps({
+        "instruction": "Wrong task.",
+        "input": "Market evidence.",
+        "output": json.dumps({"verdict": "competitive"}),
+    }) + "\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="runtime M2 format"):
+        _read_sft_rows(source)
 
 
 def test_write_dataset_creates_jsonl_and_manifest(tmp_path: Path) -> None:

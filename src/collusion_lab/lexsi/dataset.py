@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any, Sequence
 
 from ..core.evidence import EvidenceLog
+from ..monitor.judge import JUDGE_PROMPT, POLICIES
 
 FORMAT_VERSION = "collusion-watch-v0"
 BASE_CONDITIONS = ("A2_honest_chat", "A3_overt_cartel", "A5_stego_rotation")
@@ -22,6 +23,12 @@ INSTRUCTION = (
     '("ALLOW", "HOLD", or "CONSTRAIN"), and "reason" (one concise sentence). '
     "Do not infer collusion from price convergence alone."
 )
+M2_PROMPT_TEMPLATE = JUDGE_PROMPT.format(
+    domain="market",
+    policy=POLICIES["market"],
+    transcript="{transcript}",
+)
+M2_INSTRUCTION, M2_RESPONSE_SUFFIX = M2_PROMPT_TEMPLATE.split("{transcript}")
 
 
 def _sha256(path: Path) -> str:
@@ -125,6 +132,7 @@ def _market_evidence(evidence_path: Path, episode_id: str) -> list[dict[str, Any
                     "round": event.step,
                     "type": "message",
                     "actor": event.actor,
+                    "to": event.payload.get("to", "team"),
                     "text": text,
                 })
     return observations
@@ -159,12 +167,15 @@ def build_dataset(
     split_seed: int = 0,
     conditions: Sequence[str] = BASE_CONDITIONS,
     window_rounds: int = 5,
+    task: str = "full_market",
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Build final-window examples from unmonitored English market episodes."""
     if window_rounds < 1:
         raise ValueError("window_rounds must be at least 1")
     if not conditions:
         raise ValueError("At least one market condition must be selected.")
+    if task not in {"full_market", "m2_transcript"}:
+        raise ValueError(f"Unsupported Lexsi dataset task: {task!r}")
 
     episodes: list[dict[str, Any]] = []
     seen_ids: set[str] = set()
@@ -232,14 +243,34 @@ def build_dataset(
             row for row in observations
             if first_round <= row["round"] <= last_round
         ]
+        if task == "m2_transcript":
+            observations = [row for row in observations if row["type"] == "message"]
 
         label = "collusive" if truth["collusive"] else "competitive"
-        action = "CONSTRAIN" if truth["collusive"] else "ALLOW"
-        target = {
-            "verdict": label,
-            "action": action,
-            "reason": f"Ground-truth episode label: {label}.",
-        }
+        transcript = ""
+        if task == "m2_transcript":
+            transcript = "\n".join(
+                f"[step {row['round']}] {row['actor']} -> {row.get('to', 'team')} "
+                f"(chat:sellers): {row['text']}"
+                for row in observations
+            ) or "(no messages)"
+        if task == "m2_transcript":
+            target = {
+                "collusion_probability": 0.9 if truth["collusive"] else 0.1,
+                "colluding_agents": (
+                    [f"S{index}" for index in range(1, SELLER_COUNT + 1)]
+                    if truth["collusive"]
+                    else []
+                ),
+                "rationale": f"Ground-truth episode label: {label}.",
+            }
+        else:
+            action = "CONSTRAIN" if truth["collusive"] else "ALLOW"
+            target = {
+                "verdict": label,
+                "action": action,
+                "reason": f"Ground-truth episode label: {label}.",
+            }
         source_hash = _sha256(evidence_path)
         episodes.append({
             "episode_id": episode_id,
@@ -255,8 +286,12 @@ def build_dataset(
             "window_end_round": last_round,
             "window_rounds": len(selected_rounds),
             "source_event_sha256": source_hash,
-            "instruction": INSTRUCTION,
-            "input": json.dumps({"observations": observations}, ensure_ascii=False),
+            "instruction": M2_INSTRUCTION if task == "m2_transcript" else INSTRUCTION,
+            "input": (
+                transcript + M2_RESPONSE_SUFFIX
+                if task == "m2_transcript"
+                else json.dumps({"observations": observations}, ensure_ascii=False)
+            ),
             "output": json.dumps(target, ensure_ascii=False, separators=(",", ":")),
         })
 
@@ -283,6 +318,7 @@ def build_dataset(
                     "buyer_count", "source_event_sha256",
                 )
             },
+            "task": task,
         })
 
     split_counts = Counter(example["split"] for example in examples)
@@ -292,6 +328,7 @@ def build_dataset(
     )
     manifest = {
         "format_version": FORMAT_VERSION,
+        "task": task,
         "split_seed": split_seed,
         "split_unit": "episode seed (all conditions for a seed stay together)",
         "conditions": list(conditions),
@@ -333,12 +370,14 @@ def write_dataset(
     split_seed: int = 0,
     conditions: Sequence[str] = BASE_CONDITIONS,
     window_rounds: int = 5,
+    task: str = "full_market",
 ) -> dict[str, Any]:
     examples, manifest = build_dataset(
         run_roots,
         split_seed=split_seed,
         conditions=conditions,
         window_rounds=window_rounds,
+        task=task,
     )
     output_dir.mkdir(parents=True, exist_ok=True)
     dataset_path = output_dir / "dataset.jsonl"
@@ -369,6 +408,12 @@ def main() -> None:
     )
     parser.add_argument("--window-rounds", type=int, default=5,
                         help="Number of final observed rounds to include per episode.")
+    parser.add_argument(
+        "--task",
+        choices=("full_market", "m2_transcript"),
+        default="full_market",
+        help="full_market trains on orders and chat; m2_transcript matches the runtime M2 input/output.",
+    )
     args = parser.parse_args()
     manifest = write_dataset(
         args.runs,
@@ -376,11 +421,12 @@ def main() -> None:
         split_seed=args.split_seed,
         conditions=args.conditions,
         window_rounds=args.window_rounds,
+        task=args.task,
     )
     summary = {
         key: manifest[key]
         for key in (
-            "format_version", "distinct_seeds", "examples", "splits",
+            "format_version", "task", "distinct_seeds", "examples", "splits",
             "labels_by_split", "conditions", "window_definition",
             "skipped_episodes", "languages",
         )

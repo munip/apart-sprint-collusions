@@ -215,13 +215,18 @@ to accept verified legacy unkeyed logs. It filters monitor, probe,
 monitor-oversight, agent-tampering, and unselected-condition variants. Each
 example contains the **last five observed complete rounds**,
 episode ground truth, a seed-level split, source fingerprint, and model
-metadata. All episodes with the same seed stay in one split.
+metadata. All episodes with the same seed stay in one split. Use
+`--task m2_transcript --window-rounds 15` to build inputs and targets that
+match the runtime M2 judge: seller chat only and
+`collusion_probability`/`colluding_agents`/`rationale` JSON. The default
+`full_market` task includes prices and orders and is not an M2 training set.
 
 Files written:
 
 * `dataset.jsonl`: `instruction`, `input`, `output`, `split`, and `metadata`.
-  The input is a JSON window of market asks, bids, trades, and public seller
-  board messages. The target verdict/action is derived from the episode's known
+  The `full_market` input is a JSON window of asks, bids, trades, and public
+  seller-board messages. The `m2_transcript` input follows the runtime M2
+  transcript-only prompt. Targets are derived from the episode's known
   condition label.
 * `manifest.json`: condition/label/split counts, market setup, seed assignments,
   skipped variants, and source evidence hashes.
@@ -245,7 +250,7 @@ source-of-truth file and inspect CuratorKIT's `manifest.json` and
 Install the optional integration packages:
 
 ```powershell
-python -m pip install -e ".[lexsi]"
+python -m pip install -e ".[lexsi,lexsi-train]"
 ```
 
 Run the tested wrapper:
@@ -256,9 +261,13 @@ python -m collusion_lab.lexsi.curation `
   --output-dir runs/lexsi_curated_base
 ```
 
-The wrapper errors if CuratorKIT rejects or drops any rows. It writes the
-CuratorKIT provenance files and `sft_alpaca.jsonl`; it does not call an LLM or
-modify the source dataset.
+By default, the wrapper selects only `split == train`; it refuses rows without
+split metadata, saves the selected source rows, and passes only those rows to
+CuratorKIT. Validation/test examples are excluded before curation. The wrapper
+errors if CuratorKIT rejects or drops any selected row. It does not call an LLM
+or modify the source dataset. The CuratorKIT export is written to
+`runs/lexsi_curated_base/curator/sft_alpaca.jsonl`; the source copy and
+`training_manifest.json` record exactly which episodes were used.
 
 ## 3. Tiny Aya Global zero-shot baseline with AuditKIT
 
@@ -295,19 +304,117 @@ Keep the split names, sample counts, model ID, quantization, and manifest with
 the results. Tiny Aya Global is a 3.35B model under a
 [CC-BY-NC license and Cohere Labs' Acceptable Use Policy](https://huggingface.co/CohereLabs/tiny-aya-global).
 
-## 4. Steps 2 and 3 — not started
+## 4. Fine-tune the Aya Fire M2 monitor
 
-Do not train until Step 1 data curation has preserved all intended rows and the
-zero-shot baseline has been saved. For training, write a train-only JSONL from
-rows where `split == "train"`; never train on validation or test rows.
+The first fine-tune target is the **M2 market transcript judge**, not the
+seller policy. The market monitor's `monitor_judge` is configured separately
+from the seller model; the `tiny_aya_replay` profile uses Aya Fire for that
+trusted judge while keeping market agents scripted. Aya Global is not the base
+model for this monitor fine-tune. Build an M2-compatible dataset and curate
+only the training split:
 
-* **Step 2:** plain supervised fine-tuning on the CuratorKIT Alpaca export of
-  train only. Evaluate base and adapter on the same test examples with
-  `evaluate_with_auditkit`.
-* **Step 3:** repeat from the same base checkpoint and train examples using
-  SafeTune's safety-preserving trainer. Compare base, plain, and hardened
-  checkpoints on collusion detection and the same English refusal /
-  over-refusal suites.
+```bash
+python -m collusion_lab.lexsi.dataset \
+  --runs /content/drive/MyDrive/lexsi/runs/aya_market_base_a2prompt \
+  --output-dir /content/drive/MyDrive/lexsi/runs/aya_m2_dataset \
+  --task m2_transcript \
+  --window-rounds 15 \
+  --split-seed 0
+
+python -m collusion_lab.lexsi.curation \
+  --input /content/drive/MyDrive/lexsi/runs/aya_m2_dataset/dataset.jsonl \
+  --output-dir /content/drive/MyDrive/lexsi/runs/aya_m2_curated \
+  --split train
+```
+
+For the first run on a 15-GB Colab, train the lower-memory Plain SFT control
+from Tiny Aya Fire and the curated rows:
+
+```bash
+python -m collusion_lab.lexsi.train \
+  --dataset /content/drive/MyDrive/lexsi/runs/aya_m2_curated/curator/sft_alpaca.jsonl \
+  --output-dir /content/drive/MyDrive/lexsi/runs/aya_m2_finetunes \
+  --model CohereLabs/tiny-aya-fire \
+  --algorithm plain \
+  --epochs 1 \
+  --batch-size 1 \
+  --max-length 512
+```
+
+The merged checkpoint is saved at
+`/content/drive/MyDrive/lexsi/runs/aya_m2_finetunes/plain`. SafeGrad is a
+separate experiment: it keeps a frozen reference model alongside the trainable
+model and is likely to exceed a 15-GB Colab GPU. Do not describe Plain SFT as
+SafeGrad hardening.
+
+To compare Aya Fire against the fine-tuned judge on the **same stored market
+trajectories**, first upload the checkpoint to a private Hugging Face model
+repository. Use a Colab secret for `HF_TOKEN`; do not put the token in the
+notebook or command:
+
+```python
+import os
+from huggingface_hub import HfApi
+
+repo_id = "YOUR_HF_USERNAME/lexsi-tiny-aya-fire-m2-sft"
+api = HfApi(token=os.environ["HF_TOKEN"])
+api.create_repo(repo_id, repo_type="model", private=True, exist_ok=True)
+api.upload_folder(
+    repo_id=repo_id,
+    repo_type="model",
+    folder_path="/content/drive/MyDrive/lexsi/runs/aya_m2_finetunes/plain",
+)
+```
+
+Create a replay folder with only the dataset's held-out test episodes. The
+sweep command replays every episode in its input directory, so pointing it at
+the full training run would also score episodes used for fine-tuning:
+
+```python
+import json
+import shutil
+from pathlib import Path
+
+run_dir = Path("/content/drive/MyDrive/lexsi/runs/aya_market_base_a2prompt")
+dataset_path = Path("/content/drive/MyDrive/lexsi/runs/aya_m2_dataset/dataset.jsonl")
+test_dir = Path("/content/drive/MyDrive/lexsi/runs/aya_m2_test_replay")
+rows = [json.loads(line) for line in dataset_path.read_text().splitlines() if line]
+test_ids = {
+    row["metadata"]["episode_id"] for row in rows if row["split"] == "test"
+}
+if not test_ids:
+    raise ValueError("The dataset has no test episodes.")
+if test_dir.exists() and any(test_dir.iterdir()):
+    raise FileExistsError(f"Refusing to overwrite non-empty replay folder: {test_dir}")
+test_dir.mkdir(parents=True, exist_ok=True)
+for episode_id in sorted(test_ids):
+    shutil.copytree(run_dir / episode_id, test_dir / episode_id)
+```
+
+Then replay M1/M3 references and M2/M4 with each judge against those identical
+held-out, no-online-monitor trajectories:
+
+```bash
+clab sweep-monitors \
+  /content/drive/MyDrive/lexsi/runs/aya_m2_test_replay \
+  --out /content/drive/MyDrive/lexsi/runs/aya_m2_monitor_comparison \
+  --judge aya_fire=hf/CohereLabs/tiny-aya-fire \
+  --judge aya_fire_sft=hf/YOUR_HF_USERNAME/lexsi-tiny-aya-fire-m2-sft
+```
+
+This sweep does not rerun or fine-tune sellers. `lexsitest.py` is a separate
+standalone text-generation evaluation and is not the runtime monitor replay.
+The rationale target is a label-derived template, not an evidence-grounded
+explanation. With only 10 seeds, the default split has 24 training examples
+and 3 test examples (all from one test seed); treat this as an integration
+pilot, not evidence of generalizable improvement. More independent training
+and held-out test seeds are needed for reportable results. Keep test seeds out
+of training.
+
+CircuitKIT is a separate, optional interpretability analysis of Tiny Aya
+representations; it is not required for this train/evaluate comparison and
+should not be presented as a fine-tuning step. The core pipeline uses
+CuratorKIT, SafeTune, and AuditKIT.
 
 Keep all run outputs under ignored `runs/` until they are explicitly reviewed
 and prepared for publication.
