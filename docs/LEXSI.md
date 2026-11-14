@@ -390,15 +390,19 @@ python -m collusion_lab.lexsi.train \
   --model CohereLabs/tiny-aya-fire \
   --algorithm plain \
   --epochs 1 \
-  --batch-size 1 \
-  --max-length 512
+  --batch-size 1
 ```
 
 The merged checkpoint is saved at
 `/content/drive/MyDrive/lexsi/runs/aya_m2_finetunes/plain`. SafeGrad is a
 separate experiment: it keeps a frozen reference model alongside the trainable
 model and is likely to exceed a 15-GB Colab GPU. Do not describe Plain SFT as
-SafeGrad hardening.
+SafeGrad hardening. By default, SafeTune sizes the sequence length to fit the
+longest templated training example; do not set a shorter `--max-length`, which
+can mask every target token and make training fail or do no useful work. This
+full-transcript setting may use more GPU memory; reduce the exported transcript
+window in the dataset rather than truncating prompts silently if the Colab T4
+runs out of memory.
 
 To compare Aya Fire against the fine-tuned judge on the **same stored market
 trajectories**, first upload the checkpoint to a private Hugging Face model

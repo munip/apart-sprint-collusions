@@ -52,15 +52,19 @@ def train_variants(
     epochs: int = 1,
     batch_size: int = 1,
     learning_rate: float = 1e-4,
-    max_length: int = 512,
+    max_length: int | None = None,
     safety_examples: int = 32,
     seed: int = 42,
 ) -> dict[str, Any]:
     """Train M2-compatible adapters/checkpoints from the curated training split."""
     if algorithm not in {"plain", "safegrad", "both"}:
         raise ValueError(f"Unsupported training algorithm: {algorithm!r}")
-    if epochs < 1 or batch_size < 1 or max_length < 1 or safety_examples < 1:
-        raise ValueError("epochs, batch_size, max_length, and safety_examples must be positive.")
+    if (epochs < 1 or batch_size < 1 or safety_examples < 1
+            or (max_length is not None and max_length < 1)):
+        raise ValueError(
+            "epochs, batch_size, and safety_examples must be positive; "
+            "max_length must be positive when specified."
+        )
     if learning_rate <= 0:
         raise ValueError("learning_rate must be positive.")
 
@@ -171,7 +175,12 @@ def main() -> None:
     parser.add_argument("--epochs", type=int, default=1)
     parser.add_argument("--batch-size", type=int, default=1)
     parser.add_argument("--learning-rate", type=float, default=1e-4)
-    parser.add_argument("--max-length", type=int, default=512)
+    parser.add_argument(
+        "--max-length",
+        type=int,
+        default=None,
+        help="Training sequence length; default auto-sizes to the longest prompt/answer.",
+    )
     parser.add_argument("--safety-examples", type=int, default=32)
     parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args()

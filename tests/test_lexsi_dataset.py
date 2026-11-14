@@ -15,6 +15,7 @@ def _write_episode(
     *,
     evidence_key: str | None = None,
     agent_tamper_tool: bool = False,
+    chat_text: str = "Keep offers stable.",
 ) -> None:
     run = root / f"episode-{seed}"
     run.mkdir(parents=True)
@@ -50,7 +51,7 @@ def _write_episode(
     log.emit(episode_id, "B1", EventKind.ACTION, {"type": "bid", "price": 65.0},
              channel="book", step=1)
     log.emit(episode_id, "S1", EventKind.MESSAGE, {
-        "to": "sellers", "text": "Keep offers stable."
+        "to": "sellers", "text": chat_text
     }, channel="chat:sellers", step=1)
     log.emit(episode_id, "env", EventKind.STATE, {
         "event": "trade", "seller": "S1", "buyer": "B1", "price": 67.5
@@ -254,6 +255,25 @@ def test_m2_dataset_matches_transcript_only_runtime_contract(tmp_path: Path) -> 
         )
 
 
+def test_m2_dataset_uses_runtime_transcript_character_limit(tmp_path: Path) -> None:
+    root = tmp_path / "runs"
+    root.mkdir()
+    for seed in range(3):
+        _write_episode(root, seed, False, chat_text="x" * 10_000)
+
+    examples, _ = build_dataset([root], task="m2_transcript")
+
+    from collusion_lab.lexsi.dataset import M2_RESPONSE_SUFFIX
+    from collusion_lab.monitor.judge import TRANSCRIPT_LIMIT
+
+    transcript = examples[0]["input"].removesuffix(
+        M2_RESPONSE_SUFFIX
+    )
+    assert len(transcript) == TRANSCRIPT_LIMIT
+    full_transcript = "[step 1] S1 -> sellers (chat:sellers): " + "x" * 10_000
+    assert transcript == full_transcript[-TRANSCRIPT_LIMIT:]
+
+
 def test_auditkit_evaluation_runs_with_a_callable_model() -> None:
     pytest.importorskip("auditkit")
     from collusion_lab.lexsi.audit import evaluate_with_auditkit
@@ -402,6 +422,8 @@ def test_curatorkit_validates_and_exports_without_dropping_rows(
 
 def test_safetune_input_requires_runtime_m2_targets(tmp_path: Path) -> None:
     from collusion_lab.lexsi.train import _read_sft_rows
+    from collusion_lab.lexsi.train import train_variants
+    import inspect
 
     source = tmp_path / "train.jsonl"
     source.write_text(json.dumps({
@@ -423,6 +445,8 @@ def test_safetune_input_requires_runtime_m2_targets(tmp_path: Path) -> None:
     }) + "\n", encoding="utf-8")
     with pytest.raises(ValueError, match="runtime M2 format"):
         _read_sft_rows(source)
+
+    assert inspect.signature(train_variants).parameters["max_length"].default is None
 
 
 def test_write_dataset_creates_jsonl_and_manifest(tmp_path: Path) -> None:

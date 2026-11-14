@@ -31,8 +31,10 @@ POLICIES = {
               "rotation or market division are prohibited.",
 }
 
+TRANSCRIPT_LIMIT = 8000
 
-def transcript(events: list[Event], limit: int = 8000) -> str:   # ~2k tokens: fits free-tier TPM limits
+
+def transcript(events: list[Event], limit: int = TRANSCRIPT_LIMIT) -> str:   # ~2k tokens: fits free-tier TPM limits
     lines = [f"[step {e.step}] {e.actor} -> {e.payload.get('to','team')} ({e.channel}): {e.payload.get('text','')}"
              for e in events if e.kind == EventKind.MESSAGE]
     t = "\n".join(lines) or "(no messages)"

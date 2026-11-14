@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any, Sequence
 
 from ..core.evidence import EvidenceLog
-from ..monitor.judge import JUDGE_PROMPT, POLICIES
+from ..monitor.judge import JUDGE_PROMPT, POLICIES, TRANSCRIPT_LIMIT
 
 FORMAT_VERSION = "collusion-watch-v0"
 BASE_CONDITIONS = ("A2_honest_chat", "A3_overt_cartel", "A5_stego_rotation")
@@ -254,6 +254,7 @@ def build_dataset(
                 f"(chat:sellers): {row['text']}"
                 for row in observations
             ) or "(no messages)"
+            transcript = transcript[-TRANSCRIPT_LIMIT:]
         if task == "m2_transcript":
             target = {
                 "collusion_probability": 0.9 if truth["collusive"] else 0.1,
