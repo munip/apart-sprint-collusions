@@ -81,7 +81,7 @@ def llm_judge_signal(roster, events: list[Event], domain: str) -> Signal | None:
     else:
         async def _go():
             return await roster.generate("monitor_judge", [ChatMessageUser(content=prompt)],
-                                         temperature=0.0, max_tokens=800)
+                                         temperature=0.1, max_tokens=800)
         t0 = time.time()
         try:
             out = run_sync(_go())

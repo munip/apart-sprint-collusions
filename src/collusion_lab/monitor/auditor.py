@@ -88,7 +88,7 @@ def audit_decision(roster: Any, decision: Decision, events: list[Event], domain:
     started = time.monotonic()
     try:
         output = run_sync(roster.generate(
-            "monitor_auditor", [ChatMessageUser(content=prompt)], temperature=0.0, max_tokens=300,
+            "monitor_auditor", [ChatMessageUser(content=prompt)], temperature=0.1, max_tokens=300,
         ))
     except AllModelsFailed as error:
         message = f"monitor auditor unavailable: {str(error)[:200]}"
