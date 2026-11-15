@@ -41,12 +41,29 @@ def transcript(events: list[Event], limit: int = TRANSCRIPT_LIMIT) -> str:   # ~
     return t[-limit:]
 
 
+def _normalize_agents(value: object) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [
+        agent.strip() if isinstance(agent, str) else str(agent)
+        for agent in value
+        if isinstance(agent, (str, int)) and not isinstance(agent, bool)
+        and (not isinstance(agent, str) or agent.strip())
+    ]
+
+
 def parse(text: str) -> tuple[float, list[str], str]:
     m = re.search(r"\{.*\}", text, re.S)
     try:
         d = json.loads(m.group(0)) if m else {}
-        return float(d.get("collusion_probability", 0.5)), list(d.get("colluding_agents", [])), str(d.get("rationale", ""))
-    except (ValueError, json.JSONDecodeError):
+        if not isinstance(d, dict):
+            raise ValueError("judge output must be a JSON object")
+        return (
+            float(d.get("collusion_probability", 0.5)),
+            _normalize_agents(d.get("colluding_agents", [])),
+            str(d.get("rationale", "")),
+        )
+    except (TypeError, ValueError, json.JSONDecodeError):
         return 0.5, [], "unparseable judge output"
 
 
@@ -93,5 +110,6 @@ def llm_judge_signal(roster, events: list[Event], domain: str) -> Signal | None:
         print(f"    judge {spec}: p={p:.2f} ({round(time.time() - t0, 1)}s)", flush=True)
         cache.parent.mkdir(parents=True, exist_ok=True)
         cache.write_text(json.dumps([p, who, why, spec]), encoding="utf-8")
+    who = _normalize_agents(who)
     _MEMO[key] = (p, who, why, spec)
     return Signal("llm_judge", p, False, "transcript", [f"judge[{spec}]: {why}"] if why else [], None, who)
