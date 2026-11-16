@@ -14,23 +14,79 @@ The project is English-only for Steps 1–3. The first benchmark uses the
 repository's original market arrangement: **5 LLM sellers and 4 scripted ZIP
 buyers**. It covers A2 honest chat (benign hard negative), A3 overt cartel, and
 A5 steganographic price rotation. The experiments have no online monitor,
-layered monitor, probe, or intervention arm; the model sees the public market
-record, not monitor-only messages or honeypots.
+layered monitor, or probe. The current source run enables a trusted competitive
+entrant in every episode; it does not compare intervention arms. The dataset
+uses public seller-board messages, not monitor-only messages or honeypots.
 
-The work is staged so the baseline is reproducible before any training:
+## Submission preparation status (Nov 16)
 
-1. **Base (current step):** CuratorKIT validates/exports the data; Tiny Aya
-   Global runs zero-shot; AuditKIT reports format, verdict, action, and fail-open
-   metrics.
-2. **Plain fine-tune:** train on the CuratorKIT export of the train split only;
-   evaluate the adapter on the same held-out split(s) and inputs.
-3. **Safety-hardened fine-tune:** use SafeTune's hardening trainer with the same
-   task data and comparable training budget; evaluate the same collusion metrics
-   plus English refusal and over-refusal checks.
+The current `runs/aya_market_base_a2prompt` snapshot has 112 complete
+15-round episodes: 30 A2, 41 A3, and 41 A5. A2 has seeds 0-19 and 21-30;
+seed 20 is absent. The 112-row `episodes.csv` matches the episode records.
+The dataset builder verifies all evidence chains and required metadata,
+skips no episodes, and produces a seed-disjoint 78/18/16 train/validation/test
+split. The test split has 12 collusive and 4 competitive examples. The run
+records zero decision timeouts; one A2 episode is non-collusive by truth but
+marked harmful in its outcome metrics. These are trajectory-generation
+results with the trusted entrant enabled, not online-monitor results.
 
-No multilingual data, training, or safety result is claimed by Step 1.
-The Track 2a multilingual/code-mixed statement is deferred until the English
-baseline and evaluation are complete.
+The current base-versus-SFT sweep covers the 16-episode seed-disjoint test
+set (12 collusive, 4 benign). M2 AUROC is 0.15 for the base judge and 0.58 for
+the fine-tuned judge, but neither M2 arm flags a collusive episode under its
+action policy; both M4 arms flag all 16. The raw decision reasons contain
+three unparseable base-judge responses per judge-using monitor arm, although
+the attached summary incorrectly reports zero failures. The counter fix is
+present in the repository, and a corrected six-arm aggregation is available
+in the public Space. The supplied
+dataset and curation manifests verify the 78-example train split and zero
+CuratorKIT rejections. The public 41-seed model provenance file records
+SafeTune 0.1.22 `PlainSFT`, one epoch, batch size one, and learning rate
+`1e-4`, but has no source Git SHA or training-dataset hash. The model repo has
+an immutable revision, while the sweep does not pin the revision used at
+inference. The project owner has confirmed permission to release the selected
+logs and model weights; the dataset has no separate reuse license assigned,
+and upstream model terms still apply.
+
+The full article and dataset card are available in the public Space and
+dataset repo. Their source drafts are
+[`LEXSI_ARTICLE_DRAFT.md`](LEXSI_ARTICLE_DRAFT.md) and
+[`LEXSI_DATASET_CARD_DRAFT.md`](LEXSI_DATASET_CARD_DRAFT.md). They distinguish
+the current source snapshot from the older exploratory sweep. Before public
+reuse, confirm the dataset license and source-model terms. The published run
+package excludes `.env`, HF tokens, `_monitor_private`, and raw
+`llm_raw.jsonl` files.
+
+The [public Hugging Face Space](https://huggingface.co/spaces/munip/collusion-watch)
+contains the article, selected run package, datasets, sweep reports, and a
+tracked source snapshot. The [41-seed fine-tuned judge](https://huggingface.co/munip/tiny-aya-fire-m2-monitor-sft-41seed-v1)
+and [earlier 30-episode checkpoint](https://huggingface.co/munip/tiny-aya-fire-m2-monitor-sft-30ep)
+are public. The root `runs/` tree is git-ignored and contains private or
+unreviewed experiments; only the separately reviewed 112-episode A2/A3/A5
+package is released. Do not archive the whole local `runs/` directory.
+The [dataset repository](https://huggingface.co/datasets/munip/collusion-watch-lexsi-data)
+and public [dataset](https://huggingface.co/collections/munip/collusion-watch-datasets-6afae07e8895a2910ce66914)
+and [model](https://huggingface.co/collections/munip/collusion-watch-models-6afae07e3bc4e68e2ef90bf6)
+collections are now available.
+
+The intended pipeline is:
+
+1. **Base:** the Tiny Aya Fire M2 judge has been evaluated on the 16 held-out
+   episodes. It has low AUROC, three unparseable responses, and a 1/12 harmful
+   flag rate; two of four benign episodes are flagged.
+2. **Plain fine-tune:** the 78-example CuratorKIT train export and the
+   fine-tuned judge sweep are available. M2 AUROC is higher, but it flags
+   0/12 harmful episodes. Preserve the seed-disjoint test set and do not claim
+   reliable detection from these small counts.
+3. **Safety-hardened fine-tune:** not completed. The released training path is
+   plain SFT; no SafeGrad/hardening comparison, refusal or over-refusal checks,
+   or safety-retention result is claimed.
+
+No multilingual data, training, or safety result is claimed. The official
+Lexsi page requires all models, adapters, logs, and datasets to be hosted on
+Hugging Face, and asks for public HF model and dataset collections. The
+current article therefore treats the multilingual and safety-preserving
+fine-tuning statements as gaps rather than completed work. See the public
+Space and its collections for the released artifacts.
 
 ## 1. Prepare the English base dataset
 

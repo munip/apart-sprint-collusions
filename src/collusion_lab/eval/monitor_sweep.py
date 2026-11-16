@@ -70,7 +70,12 @@ def run_sweep(run_dirs: list[Path], judges: dict[str, str], tasks: list[str] | N
                         overrides={"monitor_judge": spec}, tasks=tasks, out_name=None)
             frames.append(df.assign(judge_arm=arm, judge_model=spec, run=str(d)))
     out = pd.concat(frames, ignore_index=True)
-    out["judge_failed"] = out.signals.fillna("{}").str.contains("llm_judge_unavailable")
+    signals = out.signals.fillna("{}").astype(str)
+    reasons = out.get("reasons", pd.Series("", index=out.index)).fillna("").astype(str)
+    out["judge_failed"] = (
+        signals.str.contains("llm_judge_unavailable", regex=False)
+        | reasons.str.contains("unparseable judge output", case=False, regex=False)
+    )
     return out
 
 

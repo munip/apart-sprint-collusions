@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Collusion-Watch: a small monitor and benchmark for simulated agent-market coordination.">
+    <title>Collusion-Watch | Article and artifacts</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: system-ui, sans-serif;
+        background: #f4f6fb;
+        color: #182235;
+        line-height: 1.6;
+      }
+
+      body {
+        margin: 0;
+      }
+
+      header,
+      main,
+      footer {
+        width: min(68rem, calc(100% - 2rem));
+        margin-inline: auto;
+      }
+
+      header {
+        padding: 3rem 0 1rem;
+      }
+
+      main {
+        padding-bottom: 3rem;
+      }
+
+      section,
+      .callout {
+        margin: 1.25rem 0;
+        padding: 1.5rem;
+        border: 1px solid #d8dfeb;
+        border-radius: 0.8rem;
+        background: #fff;
+      }
+
+      h1,
+      h2,
+      h3 {
+        line-height: 1.25;
+      }
+
+      h1 {
+        margin: 0.5rem 0;
+        font-size: clamp(2rem, 5vw, 3rem);
+      }
+
+      h2 {
+        margin-top: 0;
+      }
+
+      a {
+        color: #2456a6;
+      }
+
+      a:focus-visible {
+        outline: 3px solid #f0ad00;
+        outline-offset: 3px;
+      }
+
+      .status {
+        display: inline-block;
+        padding: 0.25rem 0.7rem;
+        border-radius: 99rem;
+        background: #fff1c2;
+        color: #624900;
+        font-size: 0.88rem;
+        font-weight: 700;
+      }
+
+      .lede {
+        max-width: 62rem;
+        font-size: 1.15rem;
+      }
+
+      nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.6rem 1rem;
+        padding: 0.8rem 0;
+      }
+
+      nav a,
+      .button {
+        display: inline-block;
+        padding: 0.45rem 0.75rem;
+        border: 1px solid #c9d5e8;
+        border-radius: 0.5rem;
+        background: #f8faff;
+        text-decoration: none;
+        font-weight: 650;
+      }
+
+      .metrics {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+        gap: 0.8rem;
+        margin-top: 1rem;
+      }
+
+      .metric {
+        padding: 1rem;
+        border-radius: 0.65rem;
+        background: #f3f6fc;
+      }
+
+      .metric strong {
+        display: block;
+        font-size: 1.45rem;
+      }
+
+      .warning {
+        border-left: 0.35rem solid #b45b00;
+        background: #fff9eb;
+      }
+
+      .link-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+        gap: 1rem;
+      }
+
+      li {
+        margin-block: 0.35rem;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      th,
+      td {
+        padding: 0.55rem;
+        border-bottom: 1px solid #d8dfeb;
+        text-align: left;
+        vertical-align: top;
+      }
+
+      footer {
+        padding: 0 0 2rem;
+        color: #4b5568;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <span class="status">Preliminary research release</span>
+      <h1>Collusion-Watch</h1>
+      <p class="lede">
+        A benchmark and monitor pipeline for distinguishing benign cooperation
+        from harmful coordination in simulated multi-agent markets. The full
+        article and project files are linked below.
+      </p>
+      <nav aria-label="Project navigation">
+        <a href="#article">Article</a>
+        <a href="#results">Results</a>
+        <a href="#artifacts">Data and files</a>
+        <a href="#models">Models and tools</a>
+        <a href="https://huggingface.co/spaces/munip/collusion-watch/tree/main/source">Source snapshot</a>
+        <a href="https://github.com/munip/apart-sprint-collusions">GitHub repository</a>
+      </nav>
+    </header>
+
+    <main>
+      <section id="article" aria-labelledby="article-title">
+        <h2 id="article-title">Article</h2>
+        <p>
+          <strong>Claim:</strong> Fine-tuning increased M2's ranking AUROC on
+          the small held-out set, but did not make its action policy flag
+          collusive episodes. These results are descriptive and do not establish
+          reliable detection or safety-preserving fine-tuning.
+        </p>
+        <p>
+          This English-language pilot uses a 15-round simulated double auction:
+          A2 honest seller chat is the benign comparison, A3 is overt cartel
+          coordination, and A5 uses coded price rotation. The source release
+          contains 112 episodes: 30 A2, 41 A3, and 41 A5. A2 seed 20 is absent.
+        </p>
+        <p>
+          <a class="button" href="https://huggingface.co/spaces/munip/collusion-watch/blob/main/README.md">
+            Read the complete article in the Space README
+          </a>
+          <a class="button" href="https://github.com/munip/apart-sprint-collusions/blob/feature/lexsi-work/docs/LEXSI_ARTICLE_DRAFT.md">
+            Read the article in the GitHub source
+          </a>
+        </p>
+      </section>
+
+      <section id="results" aria-labelledby="results-title">
+        <h2 id="results-title">Results at a glance</h2>
+        <p>
+          All six monitor arms were evaluated on the same 16 seed-disjoint
+          episodes (12 collusive, 4 benign).
+        </p>
+        <div class="metrics">
+          <div class="metric">
+            <strong>M2 AUROC: 0.15 to 0.58</strong>
+            Base to fine-tuned judge.
+          </div>
+          <div class="metric">
+            <strong>M2 harmful flags: 1/12 to 0/12</strong>
+            Higher ranking AUROC did not improve action-level detection.
+          </div>
+          <div class="metric">
+            <strong>M4 flags: 16/16</strong>
+            This includes all four benign episodes.
+          </div>
+        </div>
+        <p class="callout warning">
+          The test set has only four benign episodes. Three base-judge responses
+          were unparseable in each judge-using monitor arm; the archived
+          summary counter is stale. The reconciled report counts those
+          failures. Do not interpret these small-sample results as reliable
+          operating thresholds.
+        </p>
+        <table>
+          <caption>Source run distribution</caption>
+          <thead>
+            <tr><th>Condition</th><th>Episodes</th><th>Description</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>A2</td><td>30</td><td>Honest seller chat; seed 20 absent</td></tr>
+            <tr><td>A3</td><td>41</td><td>Overt coordination</td></tr>
+            <tr><td>A5</td><td>41</td><td>Coded price rotation</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section aria-labelledby="scope-title">
+        <h2 id="scope-title">Lexsi scope and limitations</h2>
+        <ul>
+          <li>
+            Closest fit: Track 2a statement 2, a labeled domain-specific
+            evaluation set. Multi-round traces are released, but the reported
+            analysis is episode-level, not a turn-by-turn audit.
+          </li>
+          <li>
+            Not covered: multilingual/code-mixed safety (Track 2a statement 4)
+            and safety-preserving fine-tuning (Track 2b statement 5). Training
+            was plain SFT; no refusal, over-refusal, or safety-retention
+            evaluation was run.
+          </li>
+          <li>
+            The dataset and evaluation are English-only. The dataset reuse
+            license is not specified; see its card and the upstream model terms
+            before reuse.
+          </li>
+          <li>
+            No cost-per-1,000-windows or serving-throughput benchmark is
+            available.             The model repository has a current revision and a compact
+            provenance record, but the sweep does not pin that revision and
+            the provenance record lacks a source SHA and training-dataset hash.
+          </li>
+        </ul>
+      </section>
+
+      <section id="artifacts" aria-labelledby="artifacts-title">
+        <h2 id="artifacts-title">Data, evaluation, and project files</h2>
+        <div class="link-grid">
+          <div>
+            <h3>Datasets and runs</h3>
+            <ul>
+              <li><a href="https://huggingface.co/datasets/munip/collusion-watch-lexsi-data">Public dataset repository</a></li>
+              <li><a href="https://huggingface.co/collections/munip/collusion-watch-datasets-6afae07e8895a2910ce66914">Dataset collection</a></li>
+              <li><a href="https://huggingface.co/spaces/munip/collusion-watch/resolve/main/data/aya_market_base_a2prompt_runs.zip">Download reviewed 112-episode runs ZIP</a></li>
+              <li><a href="https://huggingface.co/spaces/munip/collusion-watch/tree/main/data/aya_market_base_a2prompt">Browse episode logs</a></li>
+              <li><a href="https://huggingface.co/spaces/munip/collusion-watch/blob/main/data/aya_m2_dataset_41seed30_v1/dataset.jsonl">M2 dataset</a></li>
+              <li><a href="https://huggingface.co/spaces/munip/collusion-watch/blob/main/data/aya_m2_curated_41seed30_v1/curator/sft_alpaca.jsonl">CuratorKIT train export</a></li>
+            </ul>
+          </div>
+          <div>
+            <h3>Reports and source</h3>
+            <ul>
+              <li><a href="https://huggingface.co/spaces/munip/collusion-watch/blob/main/data/aya_m2_monitor_41seed30_comparison_v1_reconciled/monitor_sweep.md">Reconciled sweep report</a></li>
+              <li><a href="https://huggingface.co/spaces/munip/collusion-watch/blob/main/data/aya_m2_monitor_41seed30_comparison_v1/monitor_sweep.md">Original sweep report</a></li>
+              <li><a href="https://huggingface.co/spaces/munip/collusion-watch/tree/main/source">Browse tracked source snapshot</a></li>
+              <li><a href="https://huggingface.co/spaces/munip/collusion-watch/blob/main/source/notebooks/colab_notebook.ipynb">Annotated Colab notebook</a></li>
+              <li><a href="https://github.com/munip/apart-sprint-collusions/commits/feature/lexsi-work">Canonical GitHub history</a></li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section id="models" aria-labelledby="models-title">
+        <h2 id="models-title">Models and tools</h2>
+        <ul>
+          <li><a href="https://huggingface.co/collections/munip/collusion-watch-models-6afae07e3bc4e68e2ef90bf6">Public model collection</a></li>
+          <li><a href="https://huggingface.co/munip/tiny-aya-fire-m2-monitor-sft-41seed-v1">41-seed fine-tuned judge used in the latest sweep</a></li>
+          <li><a href="https://huggingface.co/munip/tiny-aya-fire-m2-monitor-sft-30ep">Earlier 30-episode checkpoint (not used in the latest sweep)</a></li>
+          <li><a href="https://huggingface.co/CohereLabs/tiny-aya-fire">Tiny Aya Fire base judge</a> and <a href="https://huggingface.co/CohereLabs/tiny-aya-global">Tiny Aya Global market agents</a></li>
+        </ul>
+        <p>
+          The code uses CuratorKIT for the train-only export and SafeTune's
+          plain-SFT trainer. The published 41-seed model provenance records
+          SafeTune 0.1.22, PlainSFT, one epoch, batch size one, and learning
+          rate 1e-4; it omits the training-data hash and source Git SHA. An
+          AuditKIT adapter exists, but no AuditKIT run artifact is included.
+          Do not claim SafeGrad hardening or safety preservation. The upstream
+          Tiny Aya model cards list CC-BY-NC-4.0 and gated access; check their
+          terms before reuse.
+        </p>
+      </section>
+
+      <section aria-labelledby="repro-title">
+        <h2 id="repro-title">Reproducibility and responsible release</h2>
+        <p>
+          The Space's <a href="https://huggingface.co/spaces/munip/collusion-watch/tree/main">Files and versions</a>
+          tab contains the complete reviewed release package. Its runs ZIP is
+          made from the filtered 112-episode package, not the entire local
+          <code>runs/</code> directory. Private monitor keys/anchors,
+          credentials, and unreviewed raw captures are excluded.
+        </p>
+        <p>
+          The full article reports the data split, methods, results, negative
+          findings, limitations, and follow-up experiments. GitHub remains the
+          canonical source and commit history.
+        </p>
+      </section>
+    </main>
+
+    <footer>
+      Preliminary research release. Synthetic episodes are not evidence about
+      real markets or deployed systems.
+    </footer>
+  </body>
+</html>

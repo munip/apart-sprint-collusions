@@ -2,6 +2,7 @@
 .cache/
 runs/
 logs/
+hf_space/data/
 __pycache__/
 *.egg-info/
 .pytest_cache/
