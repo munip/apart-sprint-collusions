@@ -36,22 +36,25 @@ the fine-tuned judge, but neither M2 arm flags a collusive episode under its
 action policy; both M4 arms flag all 16. The raw decision reasons contain
 three unparseable base-judge responses per judge-using monitor arm, although
 the attached summary incorrectly reports zero failures. The counter fix is
-present locally, and a corrected six-arm aggregation is available in the
-private Space staging package. The supplied
+present in the repository, and a corrected six-arm aggregation is available
+in the public Space. The supplied
 dataset and curation manifests verify the 78-example train split and zero
-CuratorKIT rejections. The sweep names the fine-tuned model, but no immutable
-model revision or trainer log is included to independently link that
-checkpoint to the notebook recipe. The project owner has confirmed
-permission to release the selected logs and model weights; verify applicable
-dataset and model licenses before publication.
+CuratorKIT rejections. The public 41-seed model provenance file records
+SafeTune 0.1.22 `PlainSFT`, one epoch, batch size one, and learning rate
+`1e-4`, but has no source Git SHA or training-dataset hash. The model repo has
+an immutable revision, while the sweep does not pin the revision used at
+inference. The project owner has confirmed permission to release the selected
+logs and model weights; the dataset has no separate reuse license assigned,
+and upstream model terms still apply.
 
-The HF Article and dataset-card drafts are
+The full article and dataset card are available in the public Space and
+dataset repo. Their source drafts are
 [`LEXSI_ARTICLE_DRAFT.md`](LEXSI_ARTICLE_DRAFT.md) and
 [`LEXSI_DATASET_CARD_DRAFT.md`](LEXSI_DATASET_CARD_DRAFT.md). They distinguish
 the current source snapshot from the older exploratory sweep. Before public
-release, verify the model checkpoint and monitor metrics, confirm the dataset
-license and source-log permission, and review public logs. Do not upload
-`.env`, HF tokens, `_monitor_private`, or raw `llm_raw.jsonl` files.
+reuse, confirm the dataset license and source-model terms. The published run
+package excludes `.env`, HF tokens, `_monitor_private`, and raw
+`llm_raw.jsonl` files.
 
 The [public Hugging Face Space](https://huggingface.co/spaces/munip/collusion-watch)
 contains the article, selected run package, datasets, sweep reports, and a

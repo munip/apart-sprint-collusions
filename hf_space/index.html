@@ -256,9 +256,9 @@
           </li>
           <li>
             No cost-per-1,000-windows or serving-throughput benchmark is
-            available. The fine-tuned model's immutable revision and trainer
-            log are not available to independently establish checkpoint
-            provenance.
+            available.             The model repository has a current revision and a compact
+            provenance record, but the sweep does not pin that revision and
+            the provenance record lacks a source SHA and training-dataset hash.
           </li>
         </ul>
       </section>
@@ -300,11 +300,13 @@
         </ul>
         <p>
           The code uses CuratorKIT for the train-only export and SafeTune's
-          plain-SFT trainer. An AuditKIT adapter exists, but the reported sweep
-          comes from the repository evaluator and no AuditKIT run artifact is
-          included. Do not claim SafeGrad hardening or safety preservation.
-          The upstream Tiny Aya model cards list CC-BY-NC-4.0 and gated access;
-          check their terms before reuse.
+          plain-SFT trainer. The published 41-seed model provenance records
+          SafeTune 0.1.22, PlainSFT, one epoch, batch size one, and learning
+          rate 1e-4; it omits the training-data hash and source Git SHA. An
+          AuditKIT adapter exists, but no AuditKIT run artifact is included.
+          Do not claim SafeGrad hardening or safety preservation. The upstream
+          Tiny Aya model cards list CC-BY-NC-4.0 and gated access; check their
+          terms before reuse.
         </p>
       </section>
 

@@ -38,8 +38,9 @@ SafeTune's `PlainSFTTrainer` for the plain-SFT path. The repository includes
 an AuditKIT adapter, but the reported sweep was produced by the project's
 replay evaluator; no AuditKIT run log is included. This is not the preferred
 three-repository evaluation pipeline. The released sweep names the 41-seed
-fine-tuned judge, but its model revision and trainer log are unavailable, so
-the exact checkpoint-to-recipe provenance remains unverified.
+fine-tuned judge. The underlying Collusion Lab harness predates this event;
+the precise run-generation dates and whether prior logs are accepted as source
+data under the hackathon rules should be confirmed with organizers.
 
 ## 1. Introduction
 
@@ -134,14 +135,24 @@ metrics come from the repository's replay evaluator. Targets are based on
 episode truth; rationale text in the earlier dataset version was templated
 from the label and is not evidence-grounded.
 
+The public 41-seed model repository's `lexsi_provenance.json` records SafeTune
+0.1.22 `harden.PlainSFT`, one epoch, batch size one, and learning rate
+`1e-4`. It does not record a source Git SHA or training-dataset hash. The
+published model revision is
+[`b7afd5c`](https://huggingface.co/munip/tiny-aya-fire-m2-monitor-sft-41seed-v1/tree/b7afd5cfc192f4737baecc1616c5cf407fe04f5d),
+but the sweep does not pin a model revision, so the exact weights used during
+inference cannot be independently matched to that current repository state.
+The base Tiny Aya Fire and Global model cards list CC-BY-NC-4.0 and gated
+access. The fine-tuned repositories do not state a separate license.
+
 The accompanying dataset manifest records 112 examples split by seed into 78
 train, 18 validation, and 16 test examples. The CuratorKIT manifest records
 78 exported training examples and zero rejections. The Colab notebook specifies
 Plain SFT on that train-only export for one epoch with batch size one. The
 sweep identifies the fine-tuned judge as
-`munip/tiny-aya-fire-m2-monitor-sft-41seed-v1`, but the supplied artifacts do
-not include a training log or immutable model revision linking that exact
-checkpoint to the recipe. No safety-hardening or safety-preservation result is
+`munip/tiny-aya-fire-m2-monitor-sft-41seed-v1`. Its compact provenance record
+documents the trainer and hyperparameters, but not a source Git SHA or
+training-dataset hash. No safety-hardening or safety-preservation result is
 claimed.
 
 ## 5. Experimental protocol
@@ -243,9 +254,9 @@ those effects.
   the A2 seed-20 episode missing. The current test split contains only four
   competitive examples.
 - A5 appears in the training data; no held-out-scheme result is available.
-- The curated train export has 78 examples, but an immutable model revision
-  and training log linking the swept checkpoint to the notebook recipe are
-  not included.
+- The current fine-tuned model revision and a compact provenance record are
+  public, but the sweep does not pin that revision and the provenance record
+  lacks a source Git SHA and training-dataset hash.
 - No refusal, over-refusal, multilingual-retention, or safety-hardening
   evaluation is available. Do not claim safety-preserving fine-tuning or
   Track 2b #5 on these results.
@@ -282,6 +293,18 @@ With access to a few GPU cores, useful next work would be to:
 
 These are proposed experiments, not completed findings or a guarantee that a
 small amount of compute will resolve the data and evaluation limitations.
+The expected benefit is narrower uncertainty from a larger, more balanced
+evaluation; whether fine-tuning improves action-level detection remains
+unknown, so no numerical before/after forecast is justified by this pilot.
+
+### Dual-use and responsible release
+
+The A3 and A5 conditions expose overt and coded coordination patterns in a
+controlled synthetic market. They are released for benchmark reproducibility,
+not as guidance for real markets or for evading monitors. The reviewed package
+excludes private monitor keys and anchors, credentials, and unreviewed raw
+captures. The public dataset has no separate reuse license assigned in this
+release; the upstream model terms still apply.
 
 ## Reproducibility and artifacts
 
