@@ -108,6 +108,18 @@ clab replay runs\swe_llm --profile fcm_auto --monitors M1 M2 M3 M4 --observabili
 clab report runs\market_llm runs\swe_llm --out reports\llm_v1            # --fpr 0.05 to change the FPR budget
 ```
 
+### Rebuild `episodes.csv`
+
+If a run is interrupted after episode folders are saved but before the summary
+CSV is refreshed, rebuild it from the per-episode `episode.json` records:
+
+```powershell
+python scripts\rebuild_episodes_csv.py runs\aya_market_base_a2prompt
+```
+
+The script overwrites only that run directory's `episodes.csv`; incomplete
+directories without an `episode.json` are ignored.
+
 `clab sweep-monitors` replays the stored no-monitor trajectories once per judge arm (M2 and M4 use the
 monitor model; M1 and M3 are model-free and scored once as references). Each arm pins exactly one
 model, so it never falls back to a stronger one, and failed judge calls are counted. Output:
