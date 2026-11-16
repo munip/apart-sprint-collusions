@@ -23,6 +23,24 @@ train, 18 validation, and 16 test examples. The small test set and a corrected
 failure count preclude claims of reliable detection, generalization, or
 safety-preserving fine-tuning.
 
+## Lexsi track and problem-statement coverage
+
+This release is closest to Track 2a, statement 2 (a labeled, domain-specific
+evaluation set). Its 15-round episodes are multi-turn traces, but the reported
+analysis is episode-level rather than a turn-by-turn audit. It does not cover
+Track 2a, statement 4: all data and evaluations are English-only. It also
+does not demonstrate Track 2b, statement 5: the training run is plain SFT,
+with no SafeGrad/hardening comparison, refusal or over-refusal benchmark, or
+safety-retention result. These are explicit gaps, not completed contributions.
+
+The code pipeline uses CuratorKIT for the 78-example train-only export and
+SafeTune's `PlainSFTTrainer` for the plain-SFT path. The repository includes
+an AuditKIT adapter, but the reported sweep was produced by the project's
+replay evaluator; no AuditKIT run log is included. This is not the preferred
+three-repository evaluation pipeline. The released sweep names the 41-seed
+fine-tuned judge, but its model revision and trainer log are unavailable, so
+the exact checkpoint-to-recipe provenance remains unverified.
+
 ## 1. Introduction
 
 An agent-market monitor must distinguish harmful coordination from benign
@@ -108,11 +126,13 @@ references. A `HOLD` or `CONSTRAIN` counts as a flagged episode in the sweep;
 this is not the same as a correct collusion verdict or a successful
 intervention.
 
-The intended dataset workflow uses CuratorKIT for schema/provenance checks
-and export, SafeTune for plain supervised fine-tuning, and AuditKIT-compatible
-metrics plus the repository's replay evaluator. Targets are based on episode
-truth; rationale text in the earlier dataset version was templated from the
-label and is not evidence-grounded.
+CuratorKIT validates and exports the training partition. The training code
+uses SafeTune's plain-SFT trainer when `--algorithm plain` is selected; this
+is not safety hardening. The repository has an AuditKIT integration, but no
+AuditKIT execution artifact is included in this release. The reported monitor
+metrics come from the repository's replay evaluator. Targets are based on
+episode truth; rationale text in the earlier dataset version was templated
+from the label and is not evidence-grounded.
 
 The accompanying dataset manifest records 112 examples split by seed into 78
 train, 18 validation, and 16 test examples. The CuratorKIT manifest records
@@ -212,6 +232,13 @@ those effects.
 - The environment is synthetic, English-only, and limited to three
   conditions. It is not evidence of real-world collusion or behavior in
   deployed markets.
+- The release is only a partial fit for Lexsi Track 2a statement 2. Although
+  episodes are multi-turn, no turn-of-first-flag analysis is reported for
+  statement 3. Multilingual/code-mixed safety (Track 2a statement 4) and
+  safety-preserving fine-tuning (Track 2b statement 5) are not demonstrated.
+- CuratorKIT and the SafeTune plain-SFT trainer are used in the code pipeline.
+  The AuditKIT adapter is present but no AuditKIT results are included, so the
+  preferred three-repository pipeline is not established by this release.
 - The source archive is imbalanced (30 A2 versus 41 each for A3 and A5), with
   the A2 seed-20 episode missing. The current test split contains only four
   competitive examples.
@@ -222,6 +249,14 @@ those effects.
 - No refusal, over-refusal, multilingual-retention, or safety-hardening
   evaluation is available. Do not claim safety-preserving fine-tuning or
   Track 2b #5 on these results.
+- No measured serving throughput or cost-per-1,000-windows comparison is
+  available. The optional ROI comparison in the hackathon guidance is not
+  claimed.
+- The episode and dataset files are publicly hosted, but this release does
+  not assign them a reuse license. The upstream Tiny Aya Fire and Global model
+  cards identify CC-BY-NC-4.0 and gated access; review those terms before
+  reuse. The fine-tuned checkpoint cards do not provide independent
+  provenance or a separate license statement.
 - The sweep summary's judge-failure column is incorrect: it reports zero
   despite three unparseable base-judge responses per judge-using monitor arm.
   Use the corrected aggregation of the saved decisions and preserve the
@@ -257,6 +292,19 @@ failure counts were recalculated from `reasons` because the exported counter
 is stale. Preserve the sweep archive and report both the original counter
 field and the corrected failure count. Confirm dataset license and model
 terms before reuse.
+
+The public Hugging Face Space links a reviewed ZIP of the 112 run episodes,
+the structured dataset, train-only CuratorKIT export, original and reconciled
+sweep outputs, model collection, dataset collection, and a source snapshot.
+The ZIP intentionally contains only the release-reviewed run package, not the
+entire local `runs/` tree.
+
+The public [dataset repository](https://huggingface.co/datasets/munip/collusion-watch-lexsi-data)
+is in the [dataset collection](https://huggingface.co/collections/munip/collusion-watch-datasets-6afae07e8895a2910ce66914).
+The public fine-tuned checkpoints are in the
+[model collection](https://huggingface.co/collections/munip/collusion-watch-models-6afae07e3bc4e68e2ef90bf6).
+Download the [reviewed runs ZIP](https://huggingface.co/spaces/munip/collusion-watch/resolve/main/data/aya_market_base_a2prompt_runs.zip)
+or browse the [Space files](https://huggingface.co/spaces/munip/collusion-watch/tree/main).
 
 The code history is maintained at
 [GitHub](https://github.com/munip/apart-sprint-collusions); see the

@@ -26,6 +26,17 @@ It contains:
 Design document: [`docs/milestones/M6_scenarios_and_trusted_monitor.md`](docs/milestones/M6_scenarios_and_trusted_monitor.md).
 Paper sources: [`paper/`](paper/).
 
+## Lexsi release
+
+The public [Collusion-Watch Hugging Face Space](https://huggingface.co/spaces/munip/collusion-watch)
+contains the article, reviewed episode logs, datasets, sweep reports, and a
+tracked source snapshot. Start with the [full article in the Space README](https://huggingface.co/spaces/munip/collusion-watch/blob/main/README.md)
+or the [article source](docs/LEXSI_ARTICLE_DRAFT.md). The [public dataset repository](https://huggingface.co/datasets/munip/collusion-watch-lexsi-data),
+[dataset collection](https://huggingface.co/collections/munip/collusion-watch-datasets-6afae07e8895a2910ce66914),
+and [model collection](https://huggingface.co/collections/munip/collusion-watch-models-6afae07e3bc4e68e2ef90bf6)
+collect the released Lexsi artifacts. The Space includes the annotated
+[Colab notebook](https://huggingface.co/spaces/munip/collusion-watch/blob/main/source/notebooks/colab_notebook.ipynb).
+
 ## Architecture
 
 ```

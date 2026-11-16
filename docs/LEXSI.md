@@ -53,18 +53,17 @@ release, verify the model checkpoint and monitor metrics, confirm the dataset
 license and source-log permission, and review public logs. Do not upload
 `.env`, HF tokens, `_monitor_private`, or raw `llm_raw.jsonl` files.
 
-For staging, keep the existing GitHub repository as the reproducible code
-source and use the existing private Hugging Face Space. Do not make the Space
-or any data/model repository public until release checks and permissions are
-complete. Do not rehost the Tiny Aya base weights. The local `runs/` tree is
-git-ignored; selected artifacts must be explicitly copied and reviewed rather
-than assumed to be included with the code repository.
-
-The private static staging Space is
-[munip/collusion-watch](https://huggingface.co/spaces/munip/collusion-watch).
-It currently contains only the status page; no dataset, logs, or model weights
-have been uploaded. Keep it private until the project owner explicitly
-requests public release.
+The [public Hugging Face Space](https://huggingface.co/spaces/munip/collusion-watch)
+contains the article, selected run package, datasets, sweep reports, and a
+tracked source snapshot. The [41-seed fine-tuned judge](https://huggingface.co/munip/tiny-aya-fire-m2-monitor-sft-41seed-v1)
+and [earlier 30-episode checkpoint](https://huggingface.co/munip/tiny-aya-fire-m2-monitor-sft-30ep)
+are public. The root `runs/` tree is git-ignored and contains private or
+unreviewed experiments; only the separately reviewed 112-episode A2/A3/A5
+package is released. Do not archive the whole local `runs/` directory.
+The [dataset repository](https://huggingface.co/datasets/munip/collusion-watch-lexsi-data)
+and public [dataset](https://huggingface.co/collections/munip/collusion-watch-datasets-6afae07e8895a2910ce66914)
+and [model](https://huggingface.co/collections/munip/collusion-watch-models-6afae07e3bc4e68e2ef90bf6)
+collections are now available.
 
 The intended pipeline is:
 
@@ -75,13 +74,16 @@ The intended pipeline is:
    fine-tuned judge sweep are available. M2 AUROC is higher, but it flags
    0/12 harmful episodes. Preserve the seed-disjoint test set and do not claim
    reliable detection from these small counts.
-3. **Safety-hardened fine-tune:** use SafeTune's hardening trainer with the same
-   task data and comparable training budget; evaluate the same collusion metrics
-   plus English refusal and over-refusal checks. No result is currently claimed.
+3. **Safety-hardened fine-tune:** not completed. The released training path is
+   plain SFT; no SafeGrad/hardening comparison, refusal or over-refusal checks,
+   or safety-retention result is claimed.
 
-No multilingual data, training, or safety result is claimed by Step 1.
-The Track 2a multilingual/code-mixed statement is deferred until the English
-baseline and evaluation are complete.
+No multilingual data, training, or safety result is claimed. The official
+Lexsi page requires all models, adapters, logs, and datasets to be hosted on
+Hugging Face, and asks for public HF model and dataset collections. The
+current article therefore treats the multilingual and safety-preserving
+fine-tuning statements as gaps rather than completed work. See the public
+Space and its collections for the released artifacts.
 
 ## 1. Prepare the English base dataset
 

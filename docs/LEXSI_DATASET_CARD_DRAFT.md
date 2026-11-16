@@ -1,8 +1,8 @@
-# Collusion-Watch Aya Market Dataset (draft)
+# Collusion-Watch Aya Market Dataset
 
-> Draft for release. The project owner confirms permission to release the
-> selected logs. Verify the dataset license and model terms before public
-> publication.
+> Public research release. The project owner has approved hosting the selected
+> logs. This dataset has no separate reuse license assigned in this release;
+> review the upstream model terms before use.
 
 ## Dataset summary
 
@@ -43,14 +43,14 @@ treated as interchangeable. A5 occurs in both training and test, so this is
 not an unseen-price-signal test. Add further benign seeds and an explicitly
 held-out condition before making generalization claims.
 
-## Files intended for the public dataset repository
+## Public dataset repository contents
 
 - `dataset.jsonl`: structured examples, split assignments, labels, and
   provenance metadata.
 - `manifest.json`: generation settings, split counts, source hashes, and
   limitations.
 - Reviewed `episodes.csv`, `episode.json`, and `evidence.jsonl` files for the
-  approved source run, if the full logs are approved for publication.
+  approved source run.
 - CuratorKIT train export and provenance/checksum files, if needed to reproduce
   training.
 
@@ -103,14 +103,15 @@ with message styles.
 
 ## License and access
 
-- Dataset license: **CC-BY-NC-4.0 proposed**; verify that this license is
-  compatible with the source models and intended data reuse before release.
-- Model output/model license terms: verify each source model's exact card and
-  acceptable-use terms before publication.
-- Access: public release requested; verify license and model terms before
-  publication.
+- Dataset license: **not specified**. Public hosting does not itself grant
+  permission to reuse the dataset; obtain permission from the project owner.
+- Source-model terms: Tiny Aya Fire and Tiny Aya Global model cards list
+  CC-BY-NC-4.0 and gated access. Review the current model cards and comply with
+  their access and use terms.
+- Access: public, with credentials, private monitor keys/anchors, and
+  unreviewed raw captures excluded.
 
 ## Citation
 
-Citation metadata and a DOI can be added after the public dataset repository
-and version are created.
+Please cite the Collusion-Watch article and repository. A formal citation and
+DOI may be added when available.
