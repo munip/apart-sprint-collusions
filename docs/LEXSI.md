@@ -483,6 +483,34 @@ CuratorKIT, SafeTune, and AuditKIT.
 Keep all run outputs under ignored `runs/` until they are explicitly reviewed
 and prepared for publication.
 
+## Future work: Tiny Aya in a layered swarm monitor
+
+The Lexsi project focuses on training and evaluating a Tiny Aya monitor for
+collusion in market transcripts. A longer-term direction is to use that judge
+as one component in a layered safety system: an environment-owned,
+tamper-evident activity store provides scoped evidence; a primary monitor
+assesses agent behavior; and an independent monitor-of-monitors checks
+decisions, evidence references, and escalation. This connects the Lexsi model
+work to the earlier Apart sprint work on collusion and swarm alignment.
+
+The diagrams below present this proposed architecture. They are not evaluated
+Lexsi components or evidence that the current Tiny Aya model detects
+manipulation, coercion, or other safety violations beyond the collusion task.
+A future study should integrate the fine-tuned judge with least-privilege
+access controls and an independently verifiable audit trail, then evaluate
+detection, attribution, false alarms, and escalation on separately labeled
+safety scenarios. The integrity and access-control mechanisms should remain
+independently checkable rather than relying on a language model as the
+system's root of trust.
+
+**Proposed layered monitor topology:**
+
+![Conceptual multi-agent environment with nested monitor layers and probes](figures/apart_monitor_topology.png)
+
+**Proposed tamper-resistant agent-swarm control:**
+
+![Conceptual agent-swarm architecture with least-privilege access, tamper inspection, and a chain of monitors](figures/apart_tamper_resistant_swarm.png)
+
 ## Local validation
 
 ```powershell
