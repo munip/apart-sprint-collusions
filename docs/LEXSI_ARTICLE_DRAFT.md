@@ -37,12 +37,30 @@ reduce harm without unacceptable benign-market costs? These are not
 interchangeable outcomes. A higher AUROC alone does not demonstrate that a
 monitor will act correctly at a usable threshold.
 
-This draft follows the organization of the research paper: environment and
-threat model, monitor design, experimental protocol, results, then limitations
-and discussion. The reported monitor comparison is a small, imbalanced
-offline replay and should not be read as a generalization estimate.
+This follow-up uses the trusted-monitor framing from the broader two-domain
+project report, but reports only the later Aya-market run and M2 monitor
+comparison below. It does not merge or re-label the separate scripted-agent
+software/market results in the
+[project paper](https://github.com/munip/apart-sprint-collusions/blob/feature/lexsi-work/paper/main.pdf).
 
-## 2. Threat model and environment
+## 2. Related work
+
+Prior work documents steganographic collusion between language-model agents
+and shows that transcript-only oversight can miss covert coordination. Work on
+algorithmic pricing also motivates distinguishing tacit price convergence
+from explicit communication. The accompanying project paper takes an
+outcome-verification approach: detect harmful effects using independent
+evidence, and use coordination traces for investigation rather than treating
+messages alone as proof. This experiment evaluates a transcript judge (M2)
+alongside rule-based and model-free monitor references; its small test set is
+not a broad comparison of these research directions.
+
+Selected references: [Secret Collusion among AI Agents](https://papers.nips.cc/paper_files/paper/2024/hash/74b1552faee9c7d0e132c7aa9232139f-Abstract-Conference.html),
+[Hidden in Plain Text](https://aclanthology.org/2025.ijcnlp-long.50/),
+[Algorithmic Collusion by Large Language Models](https://arxiv.org/abs/2404.00806), and
+[Evaluating LLM Agent Collusion in Double Auctions](https://arxiv.org/abs/2507.01413).
+
+## 3. Threat model and environment
 
 The environment is a 15-round simulated double auction with five
 Tiny Aya Global sellers and four scripted ZIP buyers. A2 is benign seller
@@ -74,7 +92,7 @@ M2 transcript dataset has 112 examples across 41 seed groups: 78 train, 18
 validation, and 16 test. The test set contains 12 collusive and 4 competitive
 episodes; it is still small and includes only four A2 examples.
 
-## 3. Trusted monitor and data pipeline
+## 4. Trusted monitor and data pipeline
 
 The replay evaluates four monitor levels:
 
@@ -106,7 +124,7 @@ not include a training log or immutable model revision linking that exact
 checkpoint to the recipe. No safety-hardening or safety-preservation result is
 claimed.
 
-## 4. Experimental protocol
+## 5. Experimental protocol
 
 The sweep output, `aya_m2_monitor_41seed30_comparison_v1`, scores the same
 16 seed-disjoint test episodes for each monitor arm:
@@ -130,7 +148,7 @@ collusion label, recall at a nominal 10% false-positive rate, and observed
 harmful/benign flag rates. These episode-level estimates are descriptive;
 four benign examples are not enough to establish a stable operating point.
 
-## 5. Results
+## 6. Results
 
 ### Monitor comparison
 
@@ -174,7 +192,7 @@ collusive examples. It does not show reliable harm detection, generalization
 to diverse benign markets, or improvement to the combined monitor. Per-seed
 and causal claims are not justified.
 
-## 6. Discussion
+## 7. Discussion
 
 This pilot illustrates why monitor evaluation needs both score-based metrics
 and action-level outcomes. AUROC improved for the fine-tuned M2 judge, but its
@@ -189,7 +207,7 @@ Online intervention, utility, and consumer-surplus effects require paired
 episodes with and without intervention; this offline sweep cannot establish
 those effects.
 
-## Limitations and responsible release
+## 8. Limitations, responsible release, and future work
 
 - The environment is synthetic, English-only, and limited to three
   conditions. It is not evidence of real-world collusion or behavior in
@@ -212,6 +230,24 @@ those effects.
   model weights. Verify the dataset license and each model's terms, and exclude
   credentials, private monitor keys/anchors, and unreviewed raw captures.
 
+With access to a few GPU cores, useful next work would be to:
+
+1. Reproduce the small adapter fine-tune across several random seeds and a
+   short, pre-registered hyperparameter sweep; retain immutable checkpoint and
+   training manifests so each evaluated model can be traced to its data split.
+2. Expand the benign A2 and held-out evaluation set, then run batched base and
+   fine-tuned inference on the same trajectories. Calibrate thresholds only
+   on validation data and report per-example parse validity and decisions on
+   the untouched test split.
+3. Run paired intervention experiments with and without the trusted entrant
+   to estimate effects on collusion index, consumer surplus, and efficiency.
+4. If suitable data and compute are available, test retention and transfer
+   (including multilingual or held-out coordination mechanisms) separately;
+   the present English-only results do not support such claims.
+
+These are proposed experiments, not completed findings or a guarantee that a
+small amount of compute will resolve the data and evaluation limitations.
+
 ## Reproducibility and artifacts
 
 The supplied artifacts include the 112-example dataset manifest, the
@@ -220,7 +256,12 @@ scores and action counts were checked against those decisions; the judge
 failure counts were recalculated from `reasons` because the exported counter
 is stale. Preserve the sweep archive and report both the original counter
 field and the corrected failure count. Confirm dataset license and model
-terms before finalizing public Hugging Face links.
+terms before reuse.
+
+The code history is maintained at
+[GitHub](https://github.com/munip/apart-sprint-collusions); see the
+[feature branch history](https://github.com/munip/apart-sprint-collusions/commits/feature/lexsi-work)
+and the [submission snapshot at commit `0ce63aed`](https://github.com/munip/apart-sprint-collusions/commit/0ce63aed1135878d25e0cd3fe5a863fd3e10ca32).
 
 ## References and model terms
 
@@ -228,6 +269,8 @@ terms before finalizing public Hugging Face links.
 - [Tiny Aya Fire](https://huggingface.co/CohereLabs/tiny-aya-fire)
 - Fine-tuned judge evaluated in this sweep:
   [munip/tiny-aya-fire-m2-monitor-sft-41seed-v1](https://huggingface.co/munip/tiny-aya-fire-m2-monitor-sft-41seed-v1)
+- Earlier checkpoint (not used in the 16-episode comparison):
+  [munip/tiny-aya-fire-m2-monitor-sft-30ep](https://huggingface.co/munip/tiny-aya-fire-m2-monitor-sft-30ep)
 
 Verify each model card's exact license and acceptable-use terms before
 publication. Do not rehost base model weights.
