@@ -14,19 +14,70 @@ The project is English-only for Steps 1–3. The first benchmark uses the
 repository's original market arrangement: **5 LLM sellers and 4 scripted ZIP
 buyers**. It covers A2 honest chat (benign hard negative), A3 overt cartel, and
 A5 steganographic price rotation. The experiments have no online monitor,
-layered monitor, probe, or intervention arm; the model sees the public market
-record, not monitor-only messages or honeypots.
+layered monitor, or probe. The current source run enables a trusted competitive
+entrant in every episode; it does not compare intervention arms. The dataset
+uses public seller-board messages, not monitor-only messages or honeypots.
 
-The work is staged so the baseline is reproducible before any training:
+## Submission preparation status (Nov 16)
 
-1. **Base (current step):** CuratorKIT validates/exports the data; Tiny Aya
-   Global runs zero-shot; AuditKIT reports format, verdict, action, and fail-open
-   metrics.
-2. **Plain fine-tune:** train on the CuratorKIT export of the train split only;
-   evaluate the adapter on the same held-out split(s) and inputs.
+The current `runs/aya_market_base_a2prompt` snapshot has 112 complete
+15-round episodes: 30 A2, 41 A3, and 41 A5. A2 has seeds 0-19 and 21-30;
+seed 20 is absent. The 112-row `episodes.csv` matches the episode records.
+The dataset builder verifies all evidence chains and required metadata,
+skips no episodes, and produces a seed-disjoint 78/18/16 train/validation/test
+split. The test split has 12 collusive and 4 competitive examples. The run
+records zero decision timeouts; one A2 episode is non-collusive by truth but
+marked harmful in its outcome metrics. These are trajectory-generation
+results with the trusted entrant enabled, not online-monitor results.
+
+The current base-versus-SFT sweep covers the 16-episode seed-disjoint test
+set (12 collusive, 4 benign). M2 AUROC is 0.15 for the base judge and 0.58 for
+the fine-tuned judge, but neither M2 arm flags a collusive episode under its
+action policy; both M4 arms flag all 16. The raw decision reasons contain
+three unparseable base-judge responses per judge-using monitor arm, although
+the attached summary incorrectly reports zero failures. The counter fix is
+present locally, and a corrected six-arm aggregation is available in the
+private Space staging package. The supplied
+dataset and curation manifests verify the 78-example train split and zero
+CuratorKIT rejections. The sweep names the fine-tuned model, but no immutable
+model revision or trainer log is included to independently link that
+checkpoint to the notebook recipe. The project owner has confirmed
+permission to release the selected logs and model weights; verify applicable
+dataset and model licenses before publication.
+
+The HF Article and dataset-card drafts are
+[`LEXSI_ARTICLE_DRAFT.md`](LEXSI_ARTICLE_DRAFT.md) and
+[`LEXSI_DATASET_CARD_DRAFT.md`](LEXSI_DATASET_CARD_DRAFT.md). They distinguish
+the current source snapshot from the older exploratory sweep. Before public
+release, verify the model checkpoint and monitor metrics, confirm the dataset
+license and source-log permission, and review public logs. Do not upload
+`.env`, HF tokens, `_monitor_private`, or raw `llm_raw.jsonl` files.
+
+For staging, keep the existing GitHub repository as the reproducible code
+source and use the existing private Hugging Face Space. Do not make the Space
+or any data/model repository public until release checks and permissions are
+complete. Do not rehost the Tiny Aya base weights. The local `runs/` tree is
+git-ignored; selected artifacts must be explicitly copied and reviewed rather
+than assumed to be included with the code repository.
+
+The private static staging Space is
+[munip/collusion-watch](https://huggingface.co/spaces/munip/collusion-watch).
+It currently contains only the status page; no dataset, logs, or model weights
+have been uploaded. Keep it private until the project owner explicitly
+requests public release.
+
+The intended pipeline is:
+
+1. **Base:** the Tiny Aya Fire M2 judge has been evaluated on the 16 held-out
+   episodes. It has low AUROC, three unparseable responses, and a 1/12 harmful
+   flag rate; two of four benign episodes are flagged.
+2. **Plain fine-tune:** the 78-example CuratorKIT train export and the
+   fine-tuned judge sweep are available. M2 AUROC is higher, but it flags
+   0/12 harmful episodes. Preserve the seed-disjoint test set and do not claim
+   reliable detection from these small counts.
 3. **Safety-hardened fine-tune:** use SafeTune's hardening trainer with the same
    task data and comparable training budget; evaluate the same collusion metrics
-   plus English refusal and over-refusal checks.
+   plus English refusal and over-refusal checks. No result is currently claimed.
 
 No multilingual data, training, or safety result is claimed by Step 1.
 The Track 2a multilingual/code-mixed statement is deferred until the English

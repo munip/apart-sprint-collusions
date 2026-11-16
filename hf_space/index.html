@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Collusion-Watch</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: system-ui, sans-serif;
+        background: #f5f7fb;
+        color: #172033;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+      }
+
+      main {
+        width: min(42rem, calc(100% - 2rem));
+        padding: 2rem;
+        border: 1px solid #d9e0ed;
+        border-radius: 1rem;
+        background: white;
+        box-shadow: 0 1rem 3rem #24324a12;
+      }
+
+      .status {
+        display: inline-block;
+        padding: 0.35rem 0.7rem;
+        border-radius: 99rem;
+        background: #fff3cd;
+        color: #694d00;
+        font-size: 0.875rem;
+        font-weight: 650;
+      }
+
+      h1 {
+        margin-bottom: 0.5rem;
+      }
+
+      p {
+        line-height: 1.6;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <span class="status">Research preview - preliminary</span>
+      <h1>Collusion-Watch</h1>
+      <p>
+        This page presents a benchmark and monitor for
+        distinguishing benign cooperation from harmful coordination in
+        simulated multi-agent markets.
+      </p>
+      <p>
+        The source archive has 112 complete episodes: 30 A2, 41 A3, and 41 A5;
+        A2 seed 20 is absent. On the 16-episode seed-disjoint test set, M2
+        AUROC is 0.15 (base) vs 0.58 (fine-tuned), but neither flags a
+        collusive episode. M4 flags all 16 episodes.
+      </p>
+      <p>
+        The exported report misses three unparseable base-judge responses per
+        judge-using monitor arm; the article notes the corrected count. This
+        The project owner authorized this public research preview. Verify the
+        dataset license and model terms before reuse. Article and artifacts
+        are in the Space README. Code and commit history:
+        <a href="https://github.com/munip/apart-sprint-collusions/commits/feature/lexsi-work">
+          GitHub repository
+        </a>.
+      </p>
+    </main>
+  </body>
+</html>

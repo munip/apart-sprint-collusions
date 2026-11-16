@@ -35,8 +35,12 @@ def test_run_sweep_pins_one_judge_per_arm(monkeypatch, tmp_path):
 
     def fake_replay(d, monitors, obs, profile, workers=2, overrides=None, tasks=None, out_name=None):
         calls.append((tuple(monitors), profile, overrides, tasks, out_name))
-        return pd.DataFrame(_rows("?", "?", monitors[0], [(0.9, True), (0.1, False)])).drop(
+        df = pd.DataFrame(_rows("?", "?", monitors[0], [(0.9, True), (0.1, False)])).drop(
             columns=["judge_arm", "judge_model"])
+        if tuple(monitors) == MS.JUDGE_MONITORS:
+            df["reasons"] = ["unparseable judge output", ""]
+            df["signals"] = [json.dumps({}), json.dumps({"llm_judge_unavailable": 0.0})]
+        return df
     import collusion_lab.experiments as E
     monkeypatch.setattr(E, "replay", fake_replay)
     df = MS.run_sweep([tmp_path], {"lower": "ollama/qwen2.5:0.5b", "higher": "groq/x"}, tasks=["T3"])
@@ -44,3 +48,5 @@ def test_run_sweep_pins_one_judge_per_arm(monkeypatch, tmp_path):
     assert [c[2] for c in calls[1:]] == [{"monitor_judge": "ollama/qwen2.5:0.5b"}, {"monitor_judge": "groq/x"}]
     assert all(c[3] == ["T3"] and c[4] is None for c in calls)        # task filter; never overwrites decisions.csv
     assert set(df.judge_arm) == {"n/a", "lower", "higher"}
+    assert df.loc[df.monitor == "M2", "judge_failed"].sum() == 4
+    assert not df.loc[df.monitor.isin(MS.REFERENCE_MONITORS), "judge_failed"].any()
